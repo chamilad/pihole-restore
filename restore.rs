@@ -1,13 +1,10 @@
+use crate::types::Restorable;
 use flate2::read::GzDecoder;
 use log::{debug, error, info, warn};
 use rusqlite::{params, Connection, Result as SQLResult};
-use serde_json::{Result as JSONResult, Value};
-use std::env;
 use std::error::Error;
-use std::fs;
 use std::fs::File;
-use std::io::{self, Read};
-use std::path::Path;
+use std::io::Read;
 use tar::Archive;
 
 mod types;
@@ -18,51 +15,10 @@ fn connect_sqlite(db_file: &str) -> Result<Connection, Box<dyn Error>> {
     Ok(connection)
 }
 
-fn load_domainlist(
-    conn: Connection,
-    contents: &str,
-    domain_type: i32,
-) -> Result<i32, Box<dyn Error>> {
-    debug!("loading domainlist table");
-    // json load contents
-    let records: Vec<types::Domain> = serde_json::from_str(contents).unwrap();
-
-    let sql = format!("INSERT OR IGNORE INTO domainlist (id,domain,enabled,date_added,comment,type) VALUES (:id,:domain,:enabled,:date_added,:comment,{});", domain_type);
-    let mut stmt = conn.prepare(&sql)?;
-
-    let record_count = records.len() as i32;
-    debug!("starting to load {} records to domainlist", record_count);
-
-    for record in records {
-        stmt.execute_named(&[
-            (":id", &record.id),
-            (":domain", &record.domain),
-            (":enabled", &record.enabled),
-            (":date_added", &record.date_added),
-            (":comment", &record.comment),
-        ]);
-    }
-
-    Ok(record_count)
-
-    // match records {
-    //     Value::Array(arr) => {
-    //         debug!("processing multiple entries for table {}", table);
-    //         for entry in arr {
-    //             match entry {
-    //                 Value::Object(obj) => {}
-    //                 _ => warn!("invalid json type found iterating contents for {}", table),
-    //             }
-    //         }
-    //     }
-    //     _ => debug!("processing a single entry for {}", table),
-    // }
-}
-
 fn load_table(
     db_file: &str,
     table: &str,
-    contents: &str,
+    file: &mut tar::Entry<'_, GzDecoder<File>>,
     flush_table: bool,
 ) -> Result<i32, Box<dyn Error>> {
     let conn: Connection = connect_sqlite(db_file)?;
@@ -81,12 +37,16 @@ fn load_table(
         }
     }
 
+    let mut s = String::new();
+    file.read_to_string(&mut s).unwrap();
+
     debug!("before match");
     let modified: i32;
     match table {
         "adlist" => {
-            // let sql = "INSERT OR IGNORE INTO adlist (id,address,enabled,date_added,comment) VALUES (:id,:address,:enabled,:date_added,:comment);".to_string();
-            debug!("not doing anything for adlist for now");
+            let sql = "INSERT OR IGNORE INTO adlist (id,address,enabled,date_added,comment) VALUES (:id,:address,:enabled,:date_added,:comment);".to_string();
+            debug!("processing adlist table");
+            // load_adlist(conn, &s);
             modified = 0;
         }
         _ => {
@@ -103,7 +63,10 @@ fn load_table(
             };
 
             debug!("loading contents to domainlist table");
-            modified = load_domainlist(conn, contents, domain_type)?;
+            debug!("{}", &s);
+            let records: Vec<types::Domain> = serde_json::from_str(&s).unwrap();
+            let record_list: types::DomainList = types::DomainList { list: records };
+            modified = record_list.restore_table(conn, domain_type)?;
         }
     }
 
@@ -132,26 +95,69 @@ fn main() {
     let mut archive = Archive::new(gz_decoder);
 
     for file_result in archive.entries().expect("Failed to read tar.gz entries") {
-        let mut file = file_result.unwrap();
+        let mut tar_file = file_result.unwrap();
 
-        let file_name = file.header().path().unwrap();
-        // println!("{}", file_name.to_string_lossy());
+        let file_path = tar_file.path().unwrap();
+        let file_name = file_path.to_str().unwrap();
 
-        if file_name.to_string_lossy() == "blacklist.exact.json" {
-            let mut s = String::new();
-            file.read_to_string(&mut s).unwrap();
-            // println!("blacklist: {}", s);
-            let result = load_table(sqlite_db_file, "blacklist", &s, true);
-            match result {
-                Ok(count) => {
-                    debug!("loaded {} blacklist domains to domainlist", count);
-                }
-                Err(e) => {
-                    warn!("error while loading blacklist domains: {}", e);
+        match file_name {
+            "blacklist.txt" => {}
+            "blacklist.exact.json" => {
+                let result = load_table(sqlite_db_file, "blacklist", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} blacklist domains to domainlist", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading blacklist domains: {}", e);
+                    }
                 }
             }
-        } else {
-            debug!("to be supported: {}", file_name.to_string_lossy());
+            "blacklist.regex.json" => {
+                let result = load_table(sqlite_db_file, "regex_blacklist", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} regex_blacklist domains to domainlist", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading regex_blacklist domains: {}", e);
+                    }
+                }
+            }
+            "whitelist.exact.json" => {
+                let result = load_table(sqlite_db_file, "whitelist", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} whitelist domains to domainlist", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading whitelist domains: {}", e);
+                    }
+                }
+            }
+            "whitelist.regex.json" => {
+                let result = load_table(sqlite_db_file, "regex_whitelist", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} regex_whitelist domains to domainlist", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading regex_whitelist domains: {}", e);
+                    }
+                }
+            }
+            "adlist.json" => {
+                let result = load_table(sqlite_db_file, "adlist", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} adlist domains to domainlist", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading adlist domains: {}", e);
+                    }
+                }
+            }
+            _ => debug!("to be supported: {}", file_name),
         }
     }
 }
