@@ -1,6 +1,6 @@
 use flate2::read::GzDecoder;
 use log::{debug, error, info, warn};
-use rusqlite::{Connection, Result as SQLResult};
+use rusqlite::{params, Connection, Result as SQLResult};
 use serde_json::{Result as JSONResult, Value};
 use std::env;
 use std::error::Error;
@@ -10,15 +10,53 @@ use std::io::{self, Read};
 use std::path::Path;
 use tar::Archive;
 
+mod types;
+
 fn connect_sqlite(db_file: &str) -> Result<Connection, Box<dyn Error>> {
+    debug!("connecting to SQLite db: {}", db_file);
     let connection = Connection::open(db_file)?;
     Ok(connection)
 }
 
-fn load_domainlist(conn: Connection, contents: &str, domain_type: i32) -> Result<i32, Box<dyn Error>> {
+fn load_domainlist(
+    conn: Connection,
+    contents: &str,
+    domain_type: i32,
+) -> Result<i32, Box<dyn Error>> {
+    debug!("loading domainlist table");
     // json load contents
-    let records: Value = serde_json::from_str(contents)?;
-    let mut sql = format!("INSERT OR IGNORE INTO domainlist (id,domain,enabled,date_added,comment,type) VALUES (:id,:domain,:enabled,:date_added,:comment,{});", domain_type)
+    let records: Vec<types::Domain> = serde_json::from_str(contents).unwrap();
+
+    let sql = format!("INSERT OR IGNORE INTO domainlist (id,domain,enabled,date_added,comment,type) VALUES (:id,:domain,:enabled,:date_added,:comment,{});", domain_type);
+    let mut stmt = conn.prepare(&sql)?;
+
+    let record_count = records.len() as i32;
+    debug!("starting to load {} records to domainlist", record_count);
+
+    for record in records {
+        stmt.execute_named(&[
+            (":id", &record.id),
+            (":domain", &record.domain),
+            (":enabled", &record.enabled),
+            (":date_added", &record.date_added),
+            (":comment", &record.comment),
+        ]);
+    }
+
+    Ok(record_count)
+
+    // match records {
+    //     Value::Array(arr) => {
+    //         debug!("processing multiple entries for table {}", table);
+    //         for entry in arr {
+    //             match entry {
+    //                 Value::Object(obj) => {}
+    //                 _ => warn!("invalid json type found iterating contents for {}", table),
+    //             }
+    //         }
+    //     }
+    //     _ => debug!("processing a single entry for {}", table),
+    // }
 }
 
 fn load_table(
@@ -31,56 +69,46 @@ fn load_table(
 
     // flush table if neededA
     if flush_table == true {
-        debug!("flushing table {}", table);
-        let clear_sql = format!("DELETE FROM TABLE \"{}\"", table);
-        conn.execute(&clear_sql, [])?;
+        let table_exists_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
+        let mut table_entry_stmt = conn.prepare(&table_exists_sql)?;
+        let mut table_entry = table_entry_stmt.query(params![table])?;
+        if let Some(_) = table_entry.next()? {
+            debug!("flushing table {}", table);
+            let clear_sql = format!("DELETE FROM \"{}\"", table);
+            conn.execute(&clear_sql, [])?;
+        } else {
+            debug!("cannot flush table since it doesn't exist: {}", table);
+        }
     }
 
+    debug!("before match");
+    let modified: i32;
     match table {
         "adlist" => {
-            let sql = "INSERT OR IGNORE INTO adlist (id,address,enabled,date_added,comment) VALUES (:id,:address,:enabled,:date_added,:comment);".to_string();
+            // let sql = "INSERT OR IGNORE INTO adlist (id,address,enabled,date_added,comment) VALUES (:id,:address,:enabled,:date_added,:comment);".to_string();
             debug!("not doing anything for adlist for now");
-        },
+            modified = 0;
+        }
         _ => {
+            debug!("not adlist");
             let domain_type: i32 = match table {
                 "whitelist" => 0,
                 "blacklist" => 1,
                 "regex_whitelist" => 2,
                 "regex_blacklist" => 3,
+                _ => {
+                    warn!("invalid table sent for domain: {}", table);
+                    -1
+                }
             };
-            load_domainlist(conn, contents, domain_type)?;
+
+            debug!("loading contents to domainlist table");
+            modified = load_domainlist(conn, contents, domain_type)?;
         }
     }
 
-    let sql: String = match table {
-        "adlist" => 
-        _ => {
-        } 
-    };
-
-    let mut stmt = conn.prepare(&sql)?;
-
-    match records {
-        Value::Array(arr) => {
-            debug!("processing multiple entries for table {}", table);
-            for entry in arr {
-                match entry {
-                    Value::Object(obj) => {
-                        let mut params: Vec<(&str, &dyn rusqlite::ToSql)> = Vec::new();
-                        for (key, value) in obj.iter() {
-                            params.push((format!(":{}", key).as_str(), &value));
-                        }
-                    }
-                    _ => warn!("invalid json type found iterating contents for {}", table),
-                }
-            }
-        },
-        _ => debug!("processing a single entry for {}", table),
-    }
-    // build table specific query
+    Ok(modified)
 }
-
-fn insert_into_table(table: &str, contents: &str, flush_table: bool) {}
 
 fn main() {
     env_logger::init();
@@ -107,69 +135,23 @@ fn main() {
         let mut file = file_result.unwrap();
 
         let file_name = file.header().path().unwrap();
-        println!("{}", file_name.to_string_lossy());
+        // println!("{}", file_name.to_string_lossy());
 
         if file_name.to_string_lossy() == "blacklist.exact.json" {
             let mut s = String::new();
             file.read_to_string(&mut s).unwrap();
-            println!("blacklist: {}", s);
-            load_table(sqlite_db_file, "blacklist", &s, true);
+            // println!("blacklist: {}", s);
+            let result = load_table(sqlite_db_file, "blacklist", &s, true);
+            match result {
+                Ok(count) => {
+                    debug!("loaded {} blacklist domains to domainlist", count);
+                }
+                Err(e) => {
+                    warn!("error while loading blacklist domains: {}", e);
+                }
+            }
+        } else {
+            debug!("to be supported: {}", file_name.to_string_lossy());
         }
-
-        //     Ok(f) => {
-        //         let file_name = match file.header().path() {
-        //             Ok(path) => match path.file_name() {
-        //                 Some(file_name) => file_name.to_owned(),
-        //                 None => {
-        //                     println!("Failed to ge the file name")
-        //                     continue;
-        //                 }
-        //             },
-        //             Err(e) => {
-        //                 println!("Failed to get file path: {}", e);
-        //                 continue;
-        //             }
-        //         };
-
-        //         let mut file_content = Vec::new();
-        //         if let Err(e) = file.read_to_end(&mut file_content) {
-        //             println!("Failed to read file content: {}", e);
-        //             continue;
-        //         }
-
-        //         file_name
-        //     }
-        //     Err(e) => {
-        //         println!("Failed to read tar.gz entry: {}", e);
-        //         continue;
-        //     }
-        // };
-
-        // let table_name = match file_name.file_stem() {
-        //     Some(stem) => stem.to_str().unwrap(),
-        //     None => {
-        //         println!("Failed to get file name stem");
-        //         continue;
-        //     }
-        // };
-
-        // let table_creation_query =
-        //     format!("CREATE TABLE IF NOT EXISTS {} (content BLOB);", table_name);
-        // if let Err(e) = connection.execute(&table_creation_query, NO_PARAMS) {
-        //     println!("Failed to create table {}: {}", table_name, e);
-        //     continue;
-        // }
-
-        // let insert_query = format!("INSERT INTO {} (content) VALUES (?)", table_name);
-        // if let Err(e) = connection.execute(&insert_query, [file_content]) {
-        //     println!("Failed to insert content into table {}: {}", table_name, e);
-        //     continue;
-        // }
-
-        // println!(
-        //     "Inserted file {} into table {}",
-        //     file_name.display(),
-        //     table_name
-        // );
     }
 }
