@@ -44,13 +44,13 @@ fn load_table(
     let modified: i32;
     match table {
         "adlist" => {
-            let sql = "INSERT OR IGNORE INTO adlist (id,address,enabled,date_added,comment) VALUES (:id,:address,:enabled,:date_added,:comment);".to_string();
             debug!("processing adlist table");
-            // load_adlist(conn, &s);
-            modified = 0;
+            let records: Vec<types::Ad> = serde_json::from_str(&s).unwrap();
+            let record_list: types::AdList = types::AdList { list: records };
+            modified = record_list.restore_table(conn)?;
         }
         _ => {
-            debug!("not adlist");
+            debug!("processing unmatched table name: {}", table);
             let domain_type: i32 = match table {
                 "whitelist" => 0,
                 "blacklist" => 1,
@@ -63,10 +63,12 @@ fn load_table(
             };
 
             debug!("loading contents to domainlist table");
-            debug!("{}", &s);
             let records: Vec<types::Domain> = serde_json::from_str(&s).unwrap();
-            let record_list: types::DomainList = types::DomainList { list: records };
-            modified = record_list.restore_table(conn, domain_type)?;
+            let record_list: types::DomainList = types::DomainList {
+                list: records,
+                domain_type,
+            };
+            modified = record_list.restore_table(conn)?;
         }
     }
 
