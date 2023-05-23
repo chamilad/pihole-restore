@@ -49,6 +49,45 @@ fn load_table(
             let record_list: types::AdList = types::AdList { list: records };
             modified = record_list.restore_table(conn)?;
         }
+        "domain_audit" => {
+            debug!("processing domain_audit table");
+            let records: Vec<types::DomainAuditEntry> = serde_json::from_str(&s).unwrap();
+            let record_list: types::DomainAuditList = types::DomainAuditList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "group" => {
+            debug!("processing group table");
+            let records: Vec<types::Group> = serde_json::from_str(&s).unwrap();
+            let record_list: types::GroupList = types::GroupList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "client" => {
+            debug!("processing client table");
+            let records: Vec<types::Client> = serde_json::from_str(&s).unwrap();
+            let record_list: types::ClientList = types::ClientList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "client_by_group" => {
+            debug!("processing client_by_group table");
+            let records: Vec<types::ClientGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: types::ClientGroupAssignmentList =
+                types::ClientGroupAssignmentList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "domainlist_by_group" => {
+            debug!("processing domainlist_by_group table");
+            let records: Vec<types::DomainListGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: types::DomainListGroupAssignmentList =
+                types::DomainListGroupAssignmentList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "adlist_by_group" => {
+            debug!("processing adlist_by_group table");
+            let records: Vec<types::AdListGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: types::AdListGroupAssignmentList =
+                types::AdListGroupAssignmentList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
         _ => {
             debug!("processing unmatched table name: {}", table);
             let domain_type: i32 = match table {
@@ -152,10 +191,76 @@ fn main() {
                 let result = load_table(sqlite_db_file, "adlist", &mut tar_file, true);
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} adlist domains to domainlist", count);
+                        debug!("loaded {} adlist domains to adlist", count);
                     }
                     Err(e) => {
                         warn!("error while loading adlist domains: {}", e);
+                    }
+                }
+            }
+            "domain_audit.json" => {
+                let result = load_table(sqlite_db_file, "domain_audit", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} domain audit entries to domain_audit", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading audit domains: {}", e);
+                    }
+                }
+            }
+            "group.json" => {
+                let result = load_table(sqlite_db_file, "group", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} domain group entries to group", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading groups: {}", e);
+                    }
+                }
+            }
+            "client.json" => {
+                let result = load_table(sqlite_db_file, "client", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} entries to client", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading clients: {}", e);
+                    }
+                }
+            }
+            "client_by_group.json" => {
+                let result = load_table(sqlite_db_file, "client_by_group", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} entries to client_by_group", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading client_by_group: {}", e);
+                    }
+                }
+            }
+            "domainlist_by_group.json" => {
+                let result = load_table(sqlite_db_file, "domainlist_by_group", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} entries to domainlist_by_group", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading domainlist_by_group: {}", e);
+                    }
+                }
+            }
+            "adlist_by_group.json" => {
+                let result = load_table(sqlite_db_file, "adlist_by_group", &mut tar_file, true);
+                match result {
+                    Ok(count) => {
+                        debug!("loaded {} entries to adlist_by_group", count);
+                    }
+                    Err(e) => {
+                        warn!("error while loading adlist_by_group: {}", e);
                     }
                 }
             }
