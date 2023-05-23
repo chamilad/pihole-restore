@@ -2,6 +2,7 @@
 name = "pihole_restore"
 version = "0.1.0"
 edition = "2021"
+authors = ["Chamila de Alwis"]
 
 [dependencies]
 flate2 = "1.0"
@@ -11,6 +12,7 @@ serde_json = "1.0.96"
 log = "0.4.17"
 env_logger = "0.10.0"
 serde = { version = "1.0.163" , features = ["derive"] }
+clap = { version = "4.3.0", features = ["derive"] }
 
 [[bin]]
 name = "pihole_restore"

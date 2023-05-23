@@ -1,4 +1,5 @@
 use crate::types::Restorable;
+use clap::Parser;
 use flate2::read::GzDecoder;
 use log::{debug, error, info, warn};
 use rusqlite::{params, Connection, Result as SQLResult};
@@ -8,6 +9,22 @@ use std::io::Read;
 use tar::Archive;
 
 mod types;
+
+#[derive(Parser, Debug)]
+#[command(author, version)]
+struct Args {
+    // teleporter archive to restore from
+    #[arg(short = 'f', long = "file")]
+    file: String,
+
+    // gravity db file
+    #[arg(short, long)]
+    database: String,
+
+    // clean existing tables
+    #[arg(short = 'c', long = "clear", default_value_t = false)]
+    flush: bool,
+}
 
 fn connect_sqlite(db_file: &str) -> Result<Connection, Box<dyn Error>> {
     debug!("connecting to SQLite db: {}", db_file);
@@ -116,18 +133,17 @@ fn load_table(
 
 fn main() {
     env_logger::init();
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() < 3 {
-        println!("Usage: cargo run -- <tar_gz_file> <sqlite_db_file>");
-        return;
-    }
-    let tar_gz_file = &args[1];
-    let sqlite_db_file = &args[2];
 
-    let file = match File::open(tar_gz_file) {
+    let args = Args::parse();
+
+    let tar_gz_file = args.file;
+    let sqlite_db_file = args.database;
+    let flush_tables = args.flush;
+
+    let file = match File::open(&tar_gz_file) {
         Ok(f) => f,
         Err(e) => {
-            error!("Failed to open {}: {}", tar_gz_file, e);
+            error!("Failed to open {}: {}", &tar_gz_file, e);
             return;
         }
     };
@@ -142,9 +158,8 @@ fn main() {
         let file_name = file_path.to_str().unwrap();
 
         match file_name {
-            "blacklist.txt" => {}
             "blacklist.exact.json" => {
-                let result = load_table(sqlite_db_file, "blacklist", &mut tar_file, true);
+                let result = load_table(&sqlite_db_file, "blacklist", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
                         debug!("loaded {} blacklist domains to domainlist", count);
@@ -155,7 +170,12 @@ fn main() {
                 }
             }
             "blacklist.regex.json" => {
-                let result = load_table(sqlite_db_file, "regex_blacklist", &mut tar_file, true);
+                let result = load_table(
+                    &sqlite_db_file,
+                    "regex_blacklist",
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} regex_blacklist domains to domainlist", count);
@@ -166,7 +186,7 @@ fn main() {
                 }
             }
             "whitelist.exact.json" => {
-                let result = load_table(sqlite_db_file, "whitelist", &mut tar_file, true);
+                let result = load_table(&sqlite_db_file, "whitelist", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
                         debug!("loaded {} whitelist domains to domainlist", count);
@@ -177,7 +197,12 @@ fn main() {
                 }
             }
             "whitelist.regex.json" => {
-                let result = load_table(sqlite_db_file, "regex_whitelist", &mut tar_file, true);
+                let result = load_table(
+                    &sqlite_db_file,
+                    "regex_whitelist",
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} regex_whitelist domains to domainlist", count);
@@ -188,7 +213,7 @@ fn main() {
                 }
             }
             "adlist.json" => {
-                let result = load_table(sqlite_db_file, "adlist", &mut tar_file, true);
+                let result = load_table(&sqlite_db_file, "adlist", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
                         debug!("loaded {} adlist domains to adlist", count);
@@ -199,7 +224,8 @@ fn main() {
                 }
             }
             "domain_audit.json" => {
-                let result = load_table(sqlite_db_file, "domain_audit", &mut tar_file, true);
+                let result =
+                    load_table(&sqlite_db_file, "domain_audit", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
                         debug!("loaded {} domain audit entries to domain_audit", count);
@@ -210,7 +236,7 @@ fn main() {
                 }
             }
             "group.json" => {
-                let result = load_table(sqlite_db_file, "group", &mut tar_file, true);
+                let result = load_table(&sqlite_db_file, "group", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
                         debug!("loaded {} domain group entries to group", count);
@@ -221,7 +247,7 @@ fn main() {
                 }
             }
             "client.json" => {
-                let result = load_table(sqlite_db_file, "client", &mut tar_file, true);
+                let result = load_table(&sqlite_db_file, "client", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
                         debug!("loaded {} entries to client", count);
@@ -232,7 +258,12 @@ fn main() {
                 }
             }
             "client_by_group.json" => {
-                let result = load_table(sqlite_db_file, "client_by_group", &mut tar_file, true);
+                let result = load_table(
+                    &sqlite_db_file,
+                    "client_by_group",
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} entries to client_by_group", count);
@@ -243,7 +274,12 @@ fn main() {
                 }
             }
             "domainlist_by_group.json" => {
-                let result = load_table(sqlite_db_file, "domainlist_by_group", &mut tar_file, true);
+                let result = load_table(
+                    &sqlite_db_file,
+                    "domainlist_by_group",
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} entries to domainlist_by_group", count);
@@ -254,7 +290,12 @@ fn main() {
                 }
             }
             "adlist_by_group.json" => {
-                let result = load_table(sqlite_db_file, "adlist_by_group", &mut tar_file, true);
+                let result = load_table(
+                    &sqlite_db_file,
+                    "adlist_by_group",
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} entries to adlist_by_group", count);
@@ -264,7 +305,8 @@ fn main() {
                     }
                 }
             }
-            _ => debug!("to be supported: {}", file_name),
+            "dnsmasq.d/04-pihole-static-dhcp.conf" => {}
+            _ => info!("to be supported: {}", file_name),
         }
     }
 }
