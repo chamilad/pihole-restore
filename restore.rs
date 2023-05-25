@@ -2,10 +2,12 @@ use crate::types::Restorable;
 use clap::Parser;
 use flate2::read::GzDecoder;
 use log::{debug, error, info, warn};
+use regex::Regex;
 use rusqlite::{params, Connection, Result as SQLResult};
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
+use std::process::{Command, Output};
 use tar::Archive;
 
 mod types;
@@ -129,6 +131,103 @@ fn load_table(
     }
 
     Ok(modified)
+}
+
+fn process_static_dhcp(file: &mut tar::Entry<'_, GzDecoder<File>>) -> Result<i32, Box<dyn Error>> {
+    // https://github.com/pi-hole/pi-hole/blob/d885e92674e8d8d9a673b35ae706b2c49ea05840/advanced/Scripts/webpage.sh#L537
+    // this inserts different formats according to given input, so it's possible the backup could
+    // contain static dhcp entries of these types
+    enum StaticDHCPType {
+        Full,           // when all three are defined
+        StaticIP,       // when no host name is defined
+        StaticHostName, // when no IP address is defined
+    }
+
+    let mut s = String::new();
+    file.read_to_string(&mut s).unwrap();
+
+    let mac_pattern = r"([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}";
+    let mac_regex = Regex::new(mac_pattern).unwrap();
+
+    let ipv4_pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+    let ipv4_regex = Regex::new(ipv4_pattern).unwrap();
+
+    let ipv6_pattern = r"^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$";
+    let ipv6_regex = Regex::new(ipv6_pattern).unwrap();
+
+    for entry in s.lines() {
+        debug!("processing static dhcp lease: {}", entry);
+        // dhcp-host=<MAC_ADDR>,<IP>,<HOSTNAME>  or variants where ip or hostname is missing
+        let sections: Vec<&str> = entry.split(",").collect();
+
+        let mut mode: StaticDHCPType = StaticDHCPType::Full;
+        if sections.len() == 3 {
+            mode = StaticDHCPType::Full;
+        } else if sections.len() == 2 {
+            // check if the second part is a valid ip
+            if ipv4_regex.is_match(sections[1]) || ipv6_regex.is_match(sections[1]) {
+                mode = StaticDHCPType::StaticIP;
+            } else {
+                mode = StaticDHCPType::StaticHostName;
+            }
+        } else {
+            warn!("invalid dhcp lease entry found: {}", entry);
+            continue;
+        }
+
+        // extract MAC address from the first slice
+        // dhcp-host=<MAC_ADDR>
+        let mac_addr = mac_regex.find(sections[0]);
+        match mac_addr {
+            Some(addr) => {
+                let dhcp_added = match mode {
+                    StaticDHCPType::Full => {
+                        add_static_dhcp_entry(addr.as_str(), sections[1], sections[2])?
+                    }
+                    StaticDHCPType::StaticIP => {
+                        add_static_dhcp_entry(addr.as_str(), sections[1], "nohost")?
+                    }
+                    StaticDHCPType::StaticHostName => {
+                        add_static_dhcp_entry(addr.as_str(), "noip", sections[1])?
+                    }
+                };
+
+                if dhcp_added {
+                    debug!("dhcp entry succesfully added: {}", entry);
+                } else {
+                    warn!("could not add the dhcp entry: {}", entry);
+                }
+            }
+            None => warn!(
+                "non-existent or invalid mac address found in the dhcp lease entry: {}",
+                entry
+            ),
+        }
+    }
+
+    return Ok(0);
+}
+
+fn add_static_dhcp_entry(mac: &str, ip: &str, hostname: &str) -> Result<bool, Box<dyn Error>> {
+    // todo: sanitisation
+    // todo: check for duplicates
+    // todo: change to real file path
+    let add_cmd: Vec<&str> = vec!["-a", "addstaticdhcp", mac, ip, hostname];
+    let exec_result = pihole_execute(add_cmd);
+    match exec_result {
+        Ok(_) => {
+            debug!("static dhcp entry added successfully: {}", mac);
+            Ok(true)
+        }
+        Err(e) => {
+            warn!("error while adding static dhcp entry: {}, {}", mac, e);
+            Err(Box::new(e))
+        }
+    }
+}
+
+fn pihole_execute(arguments: Vec<&str>) -> Result<Output, std::io::Error> {
+    Command::new("pihole").args(arguments).output()
 }
 
 fn main() {
@@ -305,7 +404,25 @@ fn main() {
                     }
                 }
             }
-            "dnsmasq.d/04-pihole-static-dhcp.conf" => {}
+            "dnsmasq.d/04-pihole-static-dhcp.conf" => {
+                // todo: do this later and pass flush_tables to add fn, avoid opening files unless needed
+                if flush_tables {
+                    match File::open("/etc/dnsmasq.d/04-pihole-static-dhcp.conf") {
+                        Err(e) => warn!("error while opening static dhcp config to flush: {}", e),
+                        Ok(file) => match file.set_len(0) {
+                            Err(e) => {
+                                warn!("error while truncating static dhcp config file: {}", e)
+                            }
+                            Ok(_) => debug!("static dhcp config truncated successfully"),
+                        },
+                    }
+                }
+
+                match process_static_dhcp(&mut tar_file) {
+                    Err(e) => warn!("error while processing the static dhcp leases: {}", e),
+                    Ok(count) => debug!("{} static dhcp leases successfully processed", count),
+                }
+            }
             _ => info!("to be supported: {}", file_name),
         }
     }

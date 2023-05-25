@@ -13,6 +13,7 @@ log = "0.4.17"
 env_logger = "0.10.0"
 serde = { version = "1.0.163" , features = ["derive"] }
 clap = { version = "4.3.0", features = ["derive"] }
+regex = "1.8.2"
 
 [[bin]]
 name = "pihole_restore"
