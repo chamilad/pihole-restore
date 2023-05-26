@@ -7,6 +7,7 @@ use rusqlite::{params, Connection, Result as SQLResult};
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 use std::process::{Command, Output};
 use tar::Archive;
 
@@ -220,17 +221,19 @@ fn add_static_dhcp_entry(mac: &str, ip: &str, hostname: &str) -> Result<bool, Bo
     // todo: sanitisation
 
     // check for duplicates
-    let mut file = File::open("/etc/dnsmasq.d/04-pihole-static-dhcp.conf")?;
-    let mut s = String::new();
-    file.read_to_string(&mut s).unwrap();
+    if Path::new("/etc/dnsmasq.d/04-pihole-static-dhcp.conf").exists() {
+        let mut file = File::open("/etc/dnsmasq.d/04-pihole-static-dhcp.conf")?;
+        let mut s = String::new();
+        file.read_to_string(&mut s).unwrap();
 
-    // assuming O(n+m) is enough here
-    if s.contains(mac) {
-        warn!(
-            "mac address already exists in the static dhcp config: {}",
-            mac
-        );
-        return Ok(false);
+        // assuming O(n+m) is enough here
+        if s.contains(mac) {
+            warn!(
+                "mac address already exists in the static dhcp config: {}",
+                mac
+            );
+            return Ok(false);
+        }
     }
 
     // add the entry through the pihole cmd
