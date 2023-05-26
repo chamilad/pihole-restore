@@ -137,6 +137,7 @@ fn process_static_dhcp(file: &mut tar::Entry<'_, GzDecoder<File>>) -> Result<i32
     // https://github.com/pi-hole/pi-hole/blob/d885e92674e8d8d9a673b35ae706b2c49ea05840/advanced/Scripts/webpage.sh#L537
     // this inserts different formats according to given input, so it's possible the backup could
     // contain static dhcp entries of these types
+    // Pihole's Admin page Teleporer code is buggy when partial information is specified
     enum StaticDHCPType {
         Full,           // when all three are defined
         StaticIP,       // when no host name is defined
@@ -145,15 +146,6 @@ fn process_static_dhcp(file: &mut tar::Entry<'_, GzDecoder<File>>) -> Result<i32
 
     let mut s = String::new();
     file.read_to_string(&mut s).unwrap();
-
-    let mac_pattern = r"([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}";
-    let mac_regex = Regex::new(mac_pattern).unwrap();
-
-    let ipv4_pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-    let ipv4_regex = Regex::new(ipv4_pattern).unwrap();
-
-    let ipv6_pattern = r"^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$";
-    let ipv6_regex = Regex::new(ipv6_pattern).unwrap();
 
     for entry in s.lines() {
         debug!("processing static dhcp lease: {}", entry);
@@ -165,7 +157,7 @@ fn process_static_dhcp(file: &mut tar::Entry<'_, GzDecoder<File>>) -> Result<i32
             mode = StaticDHCPType::Full;
         } else if sections.len() == 2 {
             // check if the second part is a valid ip
-            if ipv4_regex.is_match(sections[1]) || ipv6_regex.is_match(sections[1]) {
+            if is_valid_ip_addr(sections[1]) {
                 mode = StaticDHCPType::StaticIP;
             } else {
                 mode = StaticDHCPType::StaticHostName;
@@ -176,9 +168,7 @@ fn process_static_dhcp(file: &mut tar::Entry<'_, GzDecoder<File>>) -> Result<i32
         }
 
         // extract MAC address from the first slice
-        // dhcp-host=<MAC_ADDR>
-        let mac_addr = mac_regex.find(sections[0]);
-        match mac_addr {
+        match get_mac_addr(sections[0]) {
             Some(addr) => {
                 let dhcp_added = match mode {
                     StaticDHCPType::Full => {
@@ -208,10 +198,42 @@ fn process_static_dhcp(file: &mut tar::Entry<'_, GzDecoder<File>>) -> Result<i32
     return Ok(0);
 }
 
+fn get_mac_addr(s: &str) -> Option<regex::Match> {
+    let mac_pattern = r"([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}";
+    let mac_regex = Regex::new(mac_pattern).unwrap();
+
+    // dhcp-host=<MAC_ADDR>
+    mac_regex.find(s)
+}
+
+fn is_valid_ip_addr(s: &str) -> bool {
+    let ipv4_pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+    let ipv4_regex = Regex::new(ipv4_pattern).unwrap();
+
+    let ipv6_pattern = r"^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$";
+    let ipv6_regex = Regex::new(ipv6_pattern).unwrap();
+
+    ipv4_regex.is_match(s) || ipv6_regex.is_match(s)
+}
+
 fn add_static_dhcp_entry(mac: &str, ip: &str, hostname: &str) -> Result<bool, Box<dyn Error>> {
     // todo: sanitisation
-    // todo: check for duplicates
-    // todo: change to real file path
+
+    // check for duplicates
+    let mut file = File::open("/etc/dnsmasq.d/04-pihole-static-dhcp.conf")?;
+    let mut s = String::new();
+    file.read_to_string(&mut s).unwrap();
+
+    // assuming O(n+m) is enough here
+    if s.contains(mac) {
+        warn!(
+            "mac address already exists in the static dhcp config: {}",
+            mac
+        );
+        return Ok(false);
+    }
+
+    // add the entry through the pihole cmd
     let add_cmd: Vec<&str> = vec!["-a", "addstaticdhcp", mac, ip, hostname];
     let exec_result = pihole_execute(add_cmd);
     match exec_result {

@@ -1,10 +1,13 @@
 use log::{debug, error, info, warn};
-use rusqlite::Connection;
+use rusqlite::{Connection, ToSql};
 use serde::Deserialize;
 use std::error::Error;
 
 pub trait Restorable {
     fn restore_table(&self, conn: Connection) -> Result<i32, Box<dyn Error>>;
+    // fn flush_table(&self, conn: Connection) -> Result<bool, Box<dyn Error>>;
+    // fn get_store_statement(&self) -> Result<String, Box<dyn Error>>;
+    // fn get_store_parameters(&self) -> Result<&[(&str, &dyn ToSql)], Box<dyn Error>>;
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +36,7 @@ impl Restorable for DomainList {
         debug!("starting to load {} records to domainlist", record_count);
 
         for record in &self.list {
+            // stmt.execute(named_params!{":id": &record.id, ":domain": &record.domain})
             let result = stmt.execute_named(&[
                 (":id", &record.id),
                 (":domain", &record.domain),
