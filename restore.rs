@@ -1,4 +1,4 @@
-use crate::types::Restorable;
+use crate::gravity::Restorable;
 use clap::Parser;
 use flate2::read::GzDecoder;
 use log::{debug, error, info, warn};
@@ -11,7 +11,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 use tar::Archive;
 
-mod types;
+mod gravity;
 
 #[derive(Parser, Debug)]
 #[command(author, version)]
@@ -21,7 +21,7 @@ struct Args {
     file: String,
 
     // gravity db file
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = String::from("/etc/pihole/gravity.db"))]
     database: String,
 
     // clean existing tables
@@ -43,7 +43,7 @@ fn load_table(
 ) -> Result<i32, Box<dyn Error>> {
     let conn: Connection = connect_sqlite(db_file)?;
 
-    // flush table if neededA
+    // flush table if needed
     if flush_table == true {
         let table_exists_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
         let mut table_entry_stmt = conn.prepare(&table_exists_sql)?;
@@ -65,47 +65,48 @@ fn load_table(
     match table {
         "adlist" => {
             debug!("processing adlist table");
-            let records: Vec<types::Ad> = serde_json::from_str(&s).unwrap();
-            let record_list: types::AdList = types::AdList { list: records };
+            let records: Vec<gravity::Ad> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::AdList = gravity::AdList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         "domain_audit" => {
             debug!("processing domain_audit table");
-            let records: Vec<types::DomainAuditEntry> = serde_json::from_str(&s).unwrap();
-            let record_list: types::DomainAuditList = types::DomainAuditList { list: records };
+            let records: Vec<gravity::DomainAuditEntry> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::DomainAuditList = gravity::DomainAuditList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         "group" => {
             debug!("processing group table");
-            let records: Vec<types::Group> = serde_json::from_str(&s).unwrap();
-            let record_list: types::GroupList = types::GroupList { list: records };
+            let records: Vec<gravity::Group> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::GroupList = gravity::GroupList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         "client" => {
             debug!("processing client table");
-            let records: Vec<types::Client> = serde_json::from_str(&s).unwrap();
-            let record_list: types::ClientList = types::ClientList { list: records };
+            let records: Vec<gravity::Client> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::ClientList = gravity::ClientList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         "client_by_group" => {
             debug!("processing client_by_group table");
-            let records: Vec<types::ClientGroupAssignment> = serde_json::from_str(&s).unwrap();
-            let record_list: types::ClientGroupAssignmentList =
-                types::ClientGroupAssignmentList { list: records };
+            let records: Vec<gravity::ClientGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::ClientGroupAssignmentList =
+                gravity::ClientGroupAssignmentList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         "domainlist_by_group" => {
             debug!("processing domainlist_by_group table");
-            let records: Vec<types::DomainListGroupAssignment> = serde_json::from_str(&s).unwrap();
-            let record_list: types::DomainListGroupAssignmentList =
-                types::DomainListGroupAssignmentList { list: records };
+            let records: Vec<gravity::DomainListGroupAssignment> =
+                serde_json::from_str(&s).unwrap();
+            let record_list: gravity::DomainListGroupAssignmentList =
+                gravity::DomainListGroupAssignmentList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         "adlist_by_group" => {
             debug!("processing adlist_by_group table");
-            let records: Vec<types::AdListGroupAssignment> = serde_json::from_str(&s).unwrap();
-            let record_list: types::AdListGroupAssignmentList =
-                types::AdListGroupAssignmentList { list: records };
+            let records: Vec<gravity::AdListGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::AdListGroupAssignmentList =
+                gravity::AdListGroupAssignmentList { list: records };
             modified = record_list.restore_table(conn)?;
         }
         _ => {
@@ -122,8 +123,8 @@ fn load_table(
             };
 
             debug!("loading contents to domainlist table");
-            let records: Vec<types::Domain> = serde_json::from_str(&s).unwrap();
-            let record_list: types::DomainList = types::DomainList {
+            let records: Vec<gravity::Domain> = serde_json::from_str(&s).unwrap();
+            let record_list: gravity::DomainList = gravity::DomainList {
                 list: records,
                 domain_type,
             };
