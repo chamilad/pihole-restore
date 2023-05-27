@@ -52,8 +52,12 @@ fn main() {
 
         match file_name {
             "blacklist.exact.json" => {
-                let result =
-                    gravity::load_table(&sqlite_db_file, "blacklist", &mut tar_file, flush_tables);
+                let result = gravity::restore_domainlist(
+                    &sqlite_db_file,
+                    gravity::DomainType::Blacklist,
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} blacklist domains to domainlist", count);
@@ -64,9 +68,9 @@ fn main() {
                 }
             }
             "blacklist.regex.json" => {
-                let result = gravity::load_table(
+                let result = gravity::restore_domainlist(
                     &sqlite_db_file,
-                    "regex_blacklist",
+                    gravity::DomainType::BlacklistRegex,
                     &mut tar_file,
                     flush_tables,
                 );
@@ -80,8 +84,12 @@ fn main() {
                 }
             }
             "whitelist.exact.json" => {
-                let result =
-                    gravity::load_table(&sqlite_db_file, "whitelist", &mut tar_file, flush_tables);
+                let result = gravity::restore_domainlist(
+                    &sqlite_db_file,
+                    gravity::DomainType::Whitelist,
+                    &mut tar_file,
+                    flush_tables,
+                );
                 match result {
                     Ok(count) => {
                         debug!("loaded {} whitelist domains to domainlist", count);
@@ -92,9 +100,9 @@ fn main() {
                 }
             }
             "whitelist.regex.json" => {
-                let result = gravity::load_table(
+                let result = gravity::restore_domainlist(
                     &sqlite_db_file,
-                    "regex_whitelist",
+                    gravity::DomainType::WhitelistRegex,
                     &mut tar_file,
                     flush_tables,
                 );
