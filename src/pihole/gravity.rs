@@ -56,6 +56,7 @@ pub fn load_table(
         "adlist" => {
             debug!("processing adlist table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<Ad> = serde_json::from_str(&s).unwrap();
             let record_list: AdList = AdList { list: records };
             Ok(record_list.restore_table(conn)?)
@@ -63,6 +64,7 @@ pub fn load_table(
         "domain_audit" => {
             debug!("processing domain_audit table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<DomainAuditEntry> = serde_json::from_str(&s).unwrap();
             let record_list: DomainAuditList = DomainAuditList { list: records };
             Ok(record_list.restore_table(conn)?)
@@ -70,6 +72,7 @@ pub fn load_table(
         "group" => {
             debug!("processing group table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<Group> = serde_json::from_str(&s).unwrap();
             let record_list: GroupList = GroupList { list: records };
             Ok(record_list.restore_table(conn)?)
@@ -77,6 +80,7 @@ pub fn load_table(
         "client" => {
             debug!("processing client table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<Client> = serde_json::from_str(&s).unwrap();
             let record_list: ClientList = ClientList { list: records };
             Ok(record_list.restore_table(conn)?)
@@ -84,6 +88,7 @@ pub fn load_table(
         "client_by_group" => {
             debug!("processing client_by_group table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<ClientGroupAssignment> = serde_json::from_str(&s).unwrap();
             let record_list: ClientGroupAssignmentList =
                 ClientGroupAssignmentList { list: records };
@@ -92,6 +97,7 @@ pub fn load_table(
         "domainlist_by_group" => {
             debug!("processing domainlist_by_group table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<DomainListGroupAssignment> = serde_json::from_str(&s).unwrap();
             let record_list: DomainListGroupAssignmentList =
                 DomainListGroupAssignmentList { list: records };
@@ -100,6 +106,7 @@ pub fn load_table(
         "adlist_by_group" => {
             debug!("processing adlist_by_group table");
             let _ = flush && flush_table(db_file, table, "")?;
+
             let records: Vec<AdListGroupAssignment> = serde_json::from_str(&s).unwrap();
             let record_list: AdListGroupAssignmentList =
                 AdListGroupAssignmentList { list: records };

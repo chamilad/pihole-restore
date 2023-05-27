@@ -63,6 +63,7 @@ fn main() {
             .map(|f| f.to_lowercase())
             .collect();
 
+        // early fail on invalid filters
         let check_filters = filters.clone();
         for f in check_filters {
             if !all_filters.contains(&f) {
@@ -383,6 +384,7 @@ fn main() {
         }
     }
 
+    // restart DNS to be sure
     match pihole::cli::restart_dns() {
         Ok(_) => {
             info!("restarted dns service");

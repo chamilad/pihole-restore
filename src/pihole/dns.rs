@@ -8,18 +8,6 @@ use std::io::Read;
 const CUSTOM_DNS_FILE: &str = "/etc/pihole/custom.list";
 const CNAME_CONFIG_FILE: &str = "/etc/dnsmasq.d/05-pihole-custom-cname.conf";
 
-#[derive(Debug)]
-struct CustomDNSEntry {
-    ip: String,
-    domain: String,
-}
-
-#[derive(Debug)]
-struct CNameConfigEntry {
-    domain: String,
-    target: String,
-}
-
 pub fn process_local_dns_entries(
     file: &mut tar::Entry<'_, GzDecoder<File>>,
     flush: bool,
@@ -134,6 +122,13 @@ fn flush_local_dns_entries() -> Result<bool, Box<dyn Error>> {
     Ok(true)
 }
 
+#[derive(Debug)]
+struct CustomDNSEntry {
+    ip: String,
+    domain: String,
+}
+
+/// Reads and returns the Local DNS entries currently in the Pihole setup
 fn get_current_local_dns_entries() -> Result<Vec<CustomDNSEntry>, Box<dyn Error>> {
     let mut file = File::open(CUSTOM_DNS_FILE)?;
     let mut s = String::new();
@@ -141,6 +136,7 @@ fn get_current_local_dns_entries() -> Result<Vec<CustomDNSEntry>, Box<dyn Error>
     Ok(get_local_dns_entries(&s))
 }
 
+/// Reads and returns local DNS entries in the given custom.list file
 fn get_local_dns_entries(contents: &str) -> Vec<CustomDNSEntry> {
     let mut entries: Vec<CustomDNSEntry> = Vec::new();
     for entry in contents.lines() {
@@ -184,6 +180,13 @@ fn flush_cname_config() -> Result<bool, Box<dyn Error>> {
     Ok(true)
 }
 
+#[derive(Debug)]
+struct CNameConfigEntry {
+    domain: String,
+    target: String,
+}
+
+/// Reads and returns the local CNAME configuration in the Pihole setup
 fn get_current_cname_config() -> Result<Vec<CNameConfigEntry>, Box<dyn Error>> {
     let mut file = File::open(CNAME_CONFIG_FILE)?;
     let mut s = String::new();
@@ -191,6 +194,7 @@ fn get_current_cname_config() -> Result<Vec<CNameConfigEntry>, Box<dyn Error>> {
     Ok(get_cname_entries(&s))
 }
 
+/// Reads and returns the CNAME configuration in the given dnsmasq configuration file
 fn get_cname_entries(contents: &str) -> Vec<CNameConfigEntry> {
     let mut entries: Vec<CNameConfigEntry> = Vec::new();
     for entry in contents.lines() {

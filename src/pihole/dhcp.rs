@@ -24,6 +24,7 @@ pub fn process_static_dhcp(
         StaticHostName, // when no IP address is defined
     }
 
+    // trying to follow the same logic as Pihole teleporter PHP
     if flush && Path::new(STATIC_DHCP_CONF_FILE).exists() {
         debug!("flushing existing static dhcp configuration");
         match OpenOptions::new()
@@ -109,6 +110,7 @@ pub fn process_static_dhcp(
     }
 }
 
+/// Extract a MAC address from the given string if it contains one
 fn get_mac_addr(s: &str) -> Option<regex::Match> {
     let mac_pattern = r"([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}";
     let mac_regex = Regex::new(mac_pattern).unwrap();
@@ -117,6 +119,7 @@ fn get_mac_addr(s: &str) -> Option<regex::Match> {
     mac_regex.find(s)
 }
 
+/// Checks if the given string is a valid IPv4 or IPv6 address
 fn is_valid_ip_addr(s: &str) -> bool {
     let ipv4_pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
     let ipv4_regex = Regex::new(ipv4_pattern).unwrap();
