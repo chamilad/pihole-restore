@@ -208,20 +208,7 @@ fn main() {
                 }
             }
             "dnsmasq.d/04-pihole-static-dhcp.conf" => {
-                // todo: do this later and pass flush_tables to add fn, avoid opening files unless needed
-                if flush_tables {
-                    match File::open("/etc/dnsmasq.d/04-pihole-static-dhcp.conf") {
-                        Err(e) => warn!("error while opening static dhcp config to flush: {}", e),
-                        Ok(file) => match file.set_len(0) {
-                            Err(e) => {
-                                warn!("error while truncating static dhcp config file: {}", e)
-                            }
-                            Ok(_) => debug!("static dhcp config truncated successfully"),
-                        },
-                    }
-                }
-
-                match dhcp::process_static_dhcp(&mut tar_file) {
+                match dhcp::process_static_dhcp(&mut tar_file, flush_tables) {
                     Err(e) => warn!("error while processing the static dhcp leases: {}", e),
                     Ok(count) => debug!("{} static dhcp leases successfully processed", count),
                 }

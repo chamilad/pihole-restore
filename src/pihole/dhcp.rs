@@ -7,8 +7,11 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+const STATIC_DHCP_CONF_FILE: &str = "/etc/dnsmasq.d/04-pihole-static-dhcp.conf";
+
 pub fn process_static_dhcp(
     file: &mut tar::Entry<'_, GzDecoder<File>>,
+    flush: bool,
 ) -> Result<i32, Box<dyn Error>> {
     // https://github.com/pi-hole/pi-hole/blob/d885e92674e8d8d9a673b35ae706b2c49ea05840/advanced/Scripts/webpage.sh#L537
     // this inserts different formats according to given input, so it's possible the backup could
@@ -18,6 +21,18 @@ pub fn process_static_dhcp(
         Full,           // when all three are defined
         StaticIP,       // when no host name is defined
         StaticHostName, // when no IP address is defined
+    }
+
+    if flush {
+        match File::open(STATIC_DHCP_CONF_FILE) {
+            Err(e) => warn!("error while opening static dhcp config to flush: {}", e),
+            Ok(file) => match file.set_len(0) {
+                Err(e) => {
+                    warn!("error while truncating static dhcp config file: {}", e)
+                }
+                Ok(_) => debug!("static dhcp config truncated successfully"),
+            },
+        }
     }
 
     let mut s = String::new();
@@ -48,13 +63,13 @@ pub fn process_static_dhcp(
             Some(addr) => {
                 let dhcp_added = match mode {
                     StaticDHCPType::Full => {
-                        add_static_dhcp_entry(addr.as_str(), sections[1], sections[2])?
+                        add_static_dhcp_entry(addr.as_str(), sections[1], sections[2], flush)?
                     }
                     StaticDHCPType::StaticIP => {
-                        add_static_dhcp_entry(addr.as_str(), sections[1], "nohost")?
+                        add_static_dhcp_entry(addr.as_str(), sections[1], "nohost", flush)?
                     }
                     StaticDHCPType::StaticHostName => {
-                        add_static_dhcp_entry(addr.as_str(), "noip", sections[1])?
+                        add_static_dhcp_entry(addr.as_str(), "noip", sections[1], flush)?
                     }
                 };
 
@@ -71,7 +86,19 @@ pub fn process_static_dhcp(
         }
     }
 
-    return Ok(0);
+    match cli::restart_dns() {
+        Ok(_) => {
+            debug!("restarted dns service after loading static dhcp entries");
+            Ok(0)
+        }
+        Err(e) => {
+            warn!(
+                "error while restarting dns service after loading static dhcp entries: {}",
+                e
+            );
+            Err(Box::new(e))
+        }
+    }
 }
 
 fn get_mac_addr(s: &str) -> Option<regex::Match> {
@@ -92,12 +119,17 @@ fn is_valid_ip_addr(s: &str) -> bool {
     ipv4_regex.is_match(s) || ipv6_regex.is_match(s)
 }
 
-fn add_static_dhcp_entry(mac: &str, ip: &str, hostname: &str) -> Result<bool, Box<dyn Error>> {
+fn add_static_dhcp_entry(
+    mac: &str,
+    ip: &str,
+    hostname: &str,
+    flushed: bool,
+) -> Result<bool, Box<dyn Error>> {
     // todo: sanitisation
 
-    // check for duplicates
-    if Path::new("/etc/dnsmasq.d/04-pihole-static-dhcp.conf").exists() {
-        let mut file = File::open("/etc/dnsmasq.d/04-pihole-static-dhcp.conf")?;
+    // check for duplicates, if the file was flushed, no need to check for duplicates
+    if Path::new(STATIC_DHCP_CONF_FILE).exists() && !flushed {
+        let mut file = File::open(STATIC_DHCP_CONF_FILE)?;
         let mut s = String::new();
         file.read_to_string(&mut s).unwrap();
 

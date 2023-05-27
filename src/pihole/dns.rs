@@ -36,7 +36,20 @@ pub fn process_local_dns_entries(
             ),
         }
     }
-    Ok(0)
+
+    match cli::restart_dns() {
+        Ok(_) => {
+            debug!("restarted dns service after loading custom dns entries");
+            Ok(0)
+        }
+        Err(e) => {
+            warn!(
+                "error while restarting dns service after loading custom dns entries: {}",
+                e
+            );
+            Err(Box::new(e))
+        }
+    }
 }
 
 pub fn flush_local_dns_entries() -> Result<bool, Box<dyn Error>> {
