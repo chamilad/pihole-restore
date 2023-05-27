@@ -17,4 +17,4 @@ regex = "1.8.2"
 
 [[bin]]
 name = "pihole_restore"
-path = "restore.rs"
+path = "src/main.rs"

@@ -1,13 +1,116 @@
-use log::{debug, error, info, warn};
-use rusqlite::{Connection, ToSql};
+use flate2::read::GzDecoder;
+use log::{debug, warn};
+use rusqlite::{params, Connection};
 use serde::Deserialize;
 use std::error::Error;
+use std::fs::File;
+use std::io::Read;
 
+fn connect_sqlite(db_file: &str) -> Result<Connection, Box<dyn Error>> {
+    debug!("connecting to SQLite db: {}", db_file);
+    let connection = Connection::open(db_file)?;
+    Ok(connection)
+}
+
+pub fn load_table(
+    db_file: &str,
+    table: &str,
+    file: &mut tar::Entry<'_, GzDecoder<File>>,
+    flush_table: bool,
+) -> Result<i32, Box<dyn Error>> {
+    let conn: Connection = connect_sqlite(db_file)?;
+
+    // flush table if neededA
+    if flush_table == true {
+        let table_exists_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
+        let mut table_entry_stmt = conn.prepare(&table_exists_sql)?;
+        let mut table_entry = table_entry_stmt.query(params![table])?;
+        if let Some(_) = table_entry.next()? {
+            debug!("flushing table {}", table);
+            let clear_sql = format!("DELETE FROM \"{}\"", table);
+            conn.execute(&clear_sql, [])?;
+        } else {
+            debug!("cannot flush table since it doesn't exist: {}", table);
+        }
+    }
+
+    let mut s = String::new();
+    file.read_to_string(&mut s).unwrap();
+
+    let modified: i32;
+    match table {
+        "adlist" => {
+            debug!("processing adlist table");
+            let records: Vec<Ad> = serde_json::from_str(&s).unwrap();
+            let record_list: AdList = AdList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "domain_audit" => {
+            debug!("processing domain_audit table");
+            let records: Vec<DomainAuditEntry> = serde_json::from_str(&s).unwrap();
+            let record_list: DomainAuditList = DomainAuditList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "group" => {
+            debug!("processing group table");
+            let records: Vec<Group> = serde_json::from_str(&s).unwrap();
+            let record_list: GroupList = GroupList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "client" => {
+            debug!("processing client table");
+            let records: Vec<Client> = serde_json::from_str(&s).unwrap();
+            let record_list: ClientList = ClientList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "client_by_group" => {
+            debug!("processing client_by_group table");
+            let records: Vec<ClientGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: ClientGroupAssignmentList =
+                ClientGroupAssignmentList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "domainlist_by_group" => {
+            debug!("processing domainlist_by_group table");
+            let records: Vec<DomainListGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: DomainListGroupAssignmentList =
+                DomainListGroupAssignmentList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        "adlist_by_group" => {
+            debug!("processing adlist_by_group table");
+            let records: Vec<AdListGroupAssignment> = serde_json::from_str(&s).unwrap();
+            let record_list: AdListGroupAssignmentList =
+                AdListGroupAssignmentList { list: records };
+            modified = record_list.restore_table(conn)?;
+        }
+        _ => {
+            debug!("processing unmatched table name: {}", table);
+            let domain_type: i32 = match table {
+                "whitelist" => 0,
+                "blacklist" => 1,
+                "regex_whitelist" => 2,
+                "regex_blacklist" => 3,
+                _ => {
+                    warn!("invalid table sent for domain: {}", table);
+                    -1
+                }
+            };
+
+            debug!("loading contents to domainlist table");
+            let records: Vec<Domain> = serde_json::from_str(&s).unwrap();
+            let record_list: DomainList = DomainList {
+                list: records,
+                domain_type,
+            };
+            modified = record_list.restore_table(conn)?;
+        }
+    }
+
+    Ok(modified)
+}
 pub trait Restorable {
     fn restore_table(&self, conn: Connection) -> Result<i32, Box<dyn Error>>;
-    // fn flush_table(&self, conn: Connection) -> Result<bool, Box<dyn Error>>;
-    // fn get_store_statement(&self) -> Result<String, Box<dyn Error>>;
-    // fn get_store_parameters(&self) -> Result<&[(&str, &dyn ToSql)], Box<dyn Error>>;
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,7 +139,7 @@ impl Restorable for DomainList {
         debug!("starting to load {} records to domainlist", record_count);
 
         for record in &self.list {
-            // stmt.execute(named_params!{":id": &record.id, ":domain": &record.domain})
+            // todo: stmt.execute(named_params!{":id": &record.id, ":domain": &record.domain})
             let result = stmt.execute_named(&[
                 (":id", &record.id),
                 (":domain", &record.domain),
