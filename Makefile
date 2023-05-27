@@ -1,22 +1,19 @@
 BINARY="pihole_restore"
+VERSION := $(shell cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
 
 .DEFAULT_GOAL: $(BINARY)
 
-# run:
-	# RUST_LOG=debug cargo run -- -f ./test/pi-hole_backup.tar.gz -d ./test/gravity.db -c
-
 $(BINARY):
-	# RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target x86_64-unknown-linux-gnu
 	cargo build --release
 
 build-musl:
 	cargo build --target x86_64-unknown-linux-musl
 
-build-pihole:
+build-lowest-glibc:
 	# buster at this point is on glibc 2.28
 	docker run -v $(shell pwd):/usr/src/pihole_restore -w /usr/src/pihole_restore -it rust:buster make
 
-test: test-clean build-pihole
+test: test-clean build-lowest-glibc
 	mkdir -p test/pihole
 	mkdir -p test/dnsmasq
 	docker run --name pihole -d -v $(shell pwd)/test/pihole:/etc/pihole -v $(shell pwd)/test/dnsmasq:/etc/dnsmasq.d pihole/pihole:latest
@@ -33,3 +30,6 @@ test-clean:
 	mkdir -p ./test/archive
 	-sudo mv ./test/pihole ./test/archive/pihole-$(shell date +%Y-%m-%d_%H%M)
 	-sudo mv ./test/dnsmasq ./test/archive/dnsmasq-$(shell date +%Y-%m-%d_%H%M)
+
+release: build-lowest-glibc
+	cp ./target/release/$(BINARY) ./target/release/$(BINARY)-$(VERSION)
