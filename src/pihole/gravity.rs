@@ -1,6 +1,6 @@
 use flate2::read::GzDecoder;
 use log::{debug, warn};
-use rusqlite::{params, Connection};
+use rusqlite::{named_params, params, Connection};
 use serde::Deserialize;
 use std::error::Error;
 use std::fs::File;
@@ -174,14 +174,13 @@ impl Restorable for DomainList {
         debug!("starting to load {} records to domainlist", record_count);
 
         for record in &self.list {
-            // todo: stmt.execute(named_params!{":id": &record.id, ":domain": &record.domain})
-            let result = stmt.execute_named(&[
-                (":id", &record.id),
-                (":domain", &record.domain),
-                (":enabled", &record.enabled),
-                (":date_added", &record.date_added),
-                (":comment", &record.comment),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":id": &record.id,
+                ":domain": &record.domain,
+                ":enabled": &record.enabled,
+                ":date_added": &record.date_added,
+                ":comment": &record.comment,
+            });
 
             match result {
                 Ok(_) => {}
@@ -220,13 +219,13 @@ impl Restorable for AdList {
         debug!("starting to load {} records to adlist", record_count);
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":id", &record.id),
-                (":address", &record.address),
-                (":enabled", &record.enabled),
-                (":date_added", &record.date_added),
-                (":comment", &record.comment),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":id": &record.id,
+                ":address": &record.address,
+                ":enabled": &record.enabled,
+                ":date_added": &record.date_added,
+                ":comment": &record.comment,
+            });
 
             match result {
                 Ok(_) => {}
@@ -263,11 +262,11 @@ impl Restorable for DomainAuditList {
         debug!("starting to load {} records to domain_audit", record_count);
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":id", &record.id),
-                (":domain", &record.domain),
-                (":date_added", &record.date_added),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":id": &record.id,
+                ":domain": &record.domain,
+                ":date_added": &record.date_added,
+            });
 
             match result {
                 Ok(_) => {}
@@ -310,12 +309,12 @@ impl Restorable for GroupList {
         debug!("starting to load {} records to group", record_count);
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":id", &record.id),
-                (":name", &record.name),
-                (":date_added", &record.date_added),
-                (":description", &record.description),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":id": &record.id,
+                ":name": &record.name,
+                ":date_added": &record.date_added,
+                ":description": &record.description,
+            });
 
             match result {
                 Ok(_) => {}
@@ -355,12 +354,12 @@ impl Restorable for ClientList {
         debug!("starting to load {} records to client", record_count);
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":id", &record.id),
-                (":ip", &record.ip),
-                (":date_added", &record.date_added),
-                (":comment", &record.comment),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":id": &record.id,
+                ":ip": &record.ip,
+                ":date_added": &record.date_added,
+                ":comment": &record.comment,
+            });
 
             match result {
                 Ok(_) => {}
@@ -401,10 +400,10 @@ impl Restorable for ClientGroupAssignmentList {
         );
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":client_id", &record.client_id),
-                (":group_id", &record.group_id),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":client_id": &record.client_id,
+                ":group_id": &record.group_id,
+            });
 
             match result {
                 Ok(_) => {}
@@ -448,10 +447,10 @@ impl Restorable for DomainListGroupAssignmentList {
         );
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":domainlist_id", &record.domainlist_id),
-                (":group_id", &record.group_id),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":domainlist_id": &record.domainlist_id,
+                ":group_id": &record.group_id,
+            });
 
             match result {
                 Ok(_) => {}
@@ -495,10 +494,10 @@ impl Restorable for AdListGroupAssignmentList {
         );
 
         for record in &self.list {
-            let result = stmt.execute_named(&[
-                (":adlist_id", &record.adlist_id),
-                (":group_id", &record.group_id),
-            ]);
+            let result = stmt.execute(named_params! {
+                ":adlist_id": &record.adlist_id,
+                ":group_id": &record.group_id,
+            });
 
             match result {
                 Ok(_) => {}
