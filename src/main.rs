@@ -217,6 +217,13 @@ fn main() {
                 Err(e) => warn!("error while processing custom.list restore: {}", e),
                 Ok(count) => debug!("{} local dns entries processed", count),
             },
+            "dnsmasq.d/05-pihole-custom-cname.conf" => {
+                match dns::process_local_cname_entries(&mut tar_file, flush_tables) {
+                    Err(e) => warn!("error while processing custom cname restore: {}", e),
+                    Ok(count) => debug!("{} local cname entries processed", count),
+                }
+            }
+
             _ => info!("to be supported: {}", file_name),
         }
     }
