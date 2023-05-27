@@ -34,10 +34,15 @@ pub fn process_local_dns_entries(
     let mut s = String::new();
     file.read_to_string(&mut s).unwrap();
     let incoming_dns_entries = get_local_dns_entries(&s);
+
+    let mut processed_count = 0;
     for entry in incoming_dns_entries {
         let add_cmd = vec!["-a", "addcustomdns", &entry.ip, &entry.domain, "false"];
         match cli::execute(add_cmd) {
-            Ok(_) => debug!("added dns entry: {}->{}", entry.ip, entry.domain),
+            Ok(_) => {
+                debug!("added dns entry: {}->{}", entry.ip, entry.domain);
+                processed_count += 1;
+            }
             Err(e) => warn!(
                 "error while adding dns entry {}-.{}: {}",
                 entry.ip, entry.domain, e
@@ -48,11 +53,64 @@ pub fn process_local_dns_entries(
     match cli::restart_dns() {
         Ok(_) => {
             debug!("restarted dns service after loading custom dns entries");
-            Ok(0)
+            Ok(processed_count)
         }
         Err(e) => {
             warn!(
                 "error while restarting dns service after loading custom dns entries: {}",
+                e
+            );
+            Err(Box::new(e))
+        }
+    }
+}
+
+pub fn process_local_cname_entries(
+    file: &mut tar::Entry<'_, GzDecoder<File>>,
+    flush: bool,
+) -> Result<i32, Box<dyn Error>> {
+    if flush {
+        if !flush_cname_config()? {
+            warn!("could not flush existing cname config");
+        } else {
+            debug!("flushed existing cname config");
+        }
+    }
+
+    // todo: dedup
+    let mut s = String::new();
+    file.read_to_string(&mut s).unwrap();
+    let incoming_dns_entries = get_cname_entries(&s);
+
+    let mut processed_count = 0;
+    for entry in incoming_dns_entries {
+        let add_cmd = vec![
+            "-a",
+            "addcustomcname",
+            &entry.domain,
+            &entry.target,
+            "false",
+        ];
+        match cli::execute(add_cmd) {
+            Ok(_) => {
+                debug!("added cname entry: {}->{}", entry.domain, entry.target);
+                processed_count += 1;
+            }
+            Err(e) => warn!(
+                "error while adding cname entry {}-.{}: {}",
+                entry.domain, entry.target, e
+            ),
+        }
+    }
+
+    match cli::restart_dns() {
+        Ok(_) => {
+            debug!("restarted dns service after loading custom cname entries");
+            Ok(processed_count)
+        }
+        Err(e) => {
+            warn!(
+                "error while restarting dns service after loading custom cname entries: {}",
                 e
             );
             Err(Box::new(e))
@@ -102,54 +160,6 @@ fn get_local_dns_entries(contents: &str) -> Vec<CustomDNSEntry> {
         entries.push(dns_entry);
     }
     entries
-}
-
-pub fn process_local_cname_entries(
-    file: &mut tar::Entry<'_, GzDecoder<File>>,
-    flush: bool,
-) -> Result<i32, Box<dyn Error>> {
-    if flush {
-        if !flush_cname_config()? {
-            warn!("could not flush existing cname config");
-        } else {
-            debug!("flushed existing cname config");
-        }
-    }
-
-    // todo: dedup
-    let mut s = String::new();
-    file.read_to_string(&mut s).unwrap();
-    let incoming_dns_entries = get_cname_entries(&s);
-    for entry in incoming_dns_entries {
-        let add_cmd = vec![
-            "-a",
-            "addcustomcname",
-            &entry.domain,
-            &entry.target,
-            "false",
-        ];
-        match cli::execute(add_cmd) {
-            Ok(_) => debug!("added cname entry: {}->{}", entry.domain, entry.target),
-            Err(e) => warn!(
-                "error while adding cname entry {}-.{}: {}",
-                entry.domain, entry.target, e
-            ),
-        }
-    }
-
-    match cli::restart_dns() {
-        Ok(_) => {
-            debug!("restarted dns service after loading custom cname entries");
-            Ok(0)
-        }
-        Err(e) => {
-            warn!(
-                "error while restarting dns service after loading custom cname entries: {}",
-                e
-            );
-            Err(Box::new(e))
-        }
-    }
 }
 
 fn flush_cname_config() -> Result<bool, Box<dyn Error>> {

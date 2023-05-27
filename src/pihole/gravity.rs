@@ -173,6 +173,7 @@ impl Restorable for DomainList {
         let record_count = self.list.len() as i32;
         debug!("starting to load {} records to domainlist", record_count);
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":id": &record.id,
@@ -183,14 +184,14 @@ impl Restorable for DomainList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!("error while inserting an entry to domainlist table: {}", e);
                 }
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -218,6 +219,7 @@ impl Restorable for AdList {
         let record_count = self.list.len() as i32;
         debug!("starting to load {} records to adlist", record_count);
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":id": &record.id,
@@ -228,14 +230,14 @@ impl Restorable for AdList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!("error while inserting an entry to adlist table: {}", e);
                 }
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -261,6 +263,7 @@ impl Restorable for DomainAuditList {
         let record_count = self.list.len() as i32;
         debug!("starting to load {} records to domain_audit", record_count);
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":id": &record.id,
@@ -269,7 +272,7 @@ impl Restorable for DomainAuditList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!(
                         "error while inserting an entry to domain_audit table: {}",
@@ -279,7 +282,7 @@ impl Restorable for DomainAuditList {
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -308,6 +311,7 @@ impl Restorable for GroupList {
         let record_count = self.list.len() as i32;
         debug!("starting to load {} records to group", record_count);
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":id": &record.id,
@@ -317,14 +321,14 @@ impl Restorable for GroupList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!("error while inserting an entry to group table: {}", e);
                 }
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -353,6 +357,7 @@ impl Restorable for ClientList {
         let record_count = self.list.len() as i32;
         debug!("starting to load {} records to client", record_count);
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":id": &record.id,
@@ -362,14 +367,14 @@ impl Restorable for ClientList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!("error while inserting an entry to group table: {}", e);
                 }
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -399,6 +404,7 @@ impl Restorable for ClientGroupAssignmentList {
             record_count
         );
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":client_id": &record.client_id,
@@ -406,7 +412,7 @@ impl Restorable for ClientGroupAssignmentList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!(
                         "error while inserting an entry to client_by_group table: {}",
@@ -416,7 +422,7 @@ impl Restorable for ClientGroupAssignmentList {
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -446,6 +452,7 @@ impl Restorable for DomainListGroupAssignmentList {
             record_count
         );
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":domainlist_id": &record.domainlist_id,
@@ -453,7 +460,7 @@ impl Restorable for DomainListGroupAssignmentList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!(
                         "error while inserting an entry to domainlist_by_group table: {}",
@@ -463,7 +470,7 @@ impl Restorable for DomainListGroupAssignmentList {
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }
 
@@ -493,6 +500,7 @@ impl Restorable for AdListGroupAssignmentList {
             record_count
         );
 
+        let mut processed_count = 0;
         for record in &self.list {
             let result = stmt.execute(named_params! {
                 ":adlist_id": &record.adlist_id,
@@ -500,7 +508,7 @@ impl Restorable for AdListGroupAssignmentList {
             });
 
             match result {
-                Ok(_) => {}
+                Ok(_) => processed_count += 1,
                 Err(e) => {
                     warn!(
                         "error while inserting an entry to adlist_by_group table: {}",
@@ -510,6 +518,6 @@ impl Restorable for AdListGroupAssignmentList {
             }
         }
 
-        Ok(record_count)
+        Ok(processed_count)
     }
 }

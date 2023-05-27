@@ -44,6 +44,7 @@ pub fn process_static_dhcp(
     let mut s = String::new();
     file.read_to_string(&mut s).unwrap();
 
+    let mut processed_count = 0;
     for entry in s.lines() {
         debug!("processing static dhcp lease: {}", entry);
         // dhcp-host=<MAC_ADDR>,<IP>,<HOSTNAME>  or variants where ip or hostname is missing
@@ -80,6 +81,7 @@ pub fn process_static_dhcp(
                 };
 
                 if dhcp_added {
+                    processed_count += 1;
                     debug!("dhcp entry succesfully added: {}", entry);
                 } else {
                     warn!("could not add the dhcp entry: {}", entry);
@@ -95,7 +97,7 @@ pub fn process_static_dhcp(
     match cli::restart_dns() {
         Ok(_) => {
             debug!("restarted dns service after loading static dhcp entries");
-            Ok(0)
+            Ok(processed_count)
         }
         Err(e) => {
             warn!(

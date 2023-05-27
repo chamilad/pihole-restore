@@ -33,6 +33,7 @@ fn main() {
     let sqlite_db_file = args.database;
     let flush_tables = args.flush;
 
+    info!("start importing...");
     let file = match File::open(&tar_gz_file) {
         Ok(f) => f,
         Err(e) => {
@@ -60,10 +61,10 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} blacklist domains to domainlist", count);
+                        info!("processed blacklist (exact) ({} entries)", count);
                     }
                     Err(e) => {
-                        warn!("error while loading blacklist domains: {}", e);
+                        warn!("error while processing blacklist domains: {}", e);
                     }
                 }
             }
@@ -76,7 +77,7 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} regex_blacklist domains to domainlist", count);
+                        info!("processed blacklist (regex) ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading regex_blacklist domains: {}", e);
@@ -92,7 +93,7 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} whitelist domains to domainlist", count);
+                        info!("processed whitelist (exact) ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading whitelist domains: {}", e);
@@ -108,7 +109,7 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} regex_whitelist domains to domainlist", count);
+                        info!("processed whitelist (regex) ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading regex_whitelist domains: {}", e);
@@ -120,7 +121,7 @@ fn main() {
                     gravity::load_table(&sqlite_db_file, "adlist", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} adlist domains to adlist", count);
+                        info!("processed adlist ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading adlist domains: {}", e);
@@ -136,7 +137,7 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} domain audit entries to domain_audit", count);
+                        info!("processed domain_audit ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading audit domains: {}", e);
@@ -148,7 +149,7 @@ fn main() {
                     gravity::load_table(&sqlite_db_file, "group", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} domain group entries to group", count);
+                        info!("processed group ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading groups: {}", e);
@@ -160,7 +161,7 @@ fn main() {
                     gravity::load_table(&sqlite_db_file, "client", &mut tar_file, flush_tables);
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} entries to client", count);
+                        info!("processed client ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading clients: {}", e);
@@ -176,7 +177,7 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} entries to client_by_group", count);
+                        info!("processed client group assignments ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading client_by_group: {}", e);
@@ -192,7 +193,10 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} entries to domainlist_by_group", count);
+                        info!(
+                            "processed black-/whitelist group assginments ({} entries)",
+                            count
+                        );
                     }
                     Err(e) => {
                         warn!("error while loading domainlist_by_group: {}", e);
@@ -208,7 +212,7 @@ fn main() {
                 );
                 match result {
                     Ok(count) => {
-                        debug!("loaded {} entries to adlist_by_group", count);
+                        info!("processed adlist group assginments ({} entries)", count);
                     }
                     Err(e) => {
                         warn!("error while loading adlist_by_group: {}", e);
@@ -218,21 +222,35 @@ fn main() {
             "dnsmasq.d/04-pihole-static-dhcp.conf" => {
                 match dhcp::process_static_dhcp(&mut tar_file, flush_tables) {
                     Err(e) => warn!("error while processing the static dhcp leases: {}", e),
-                    Ok(count) => debug!("{} static dhcp leases successfully processed", count),
+                    Ok(count) => info!("processed static dhcp leases ({} entries)", count),
                 }
             }
             "custom.list" => match dns::process_local_dns_entries(&mut tar_file, flush_tables) {
                 Err(e) => warn!("error while processing custom.list restore: {}", e),
-                Ok(count) => debug!("{} local dns entries processed", count),
+                Ok(count) => info!("processed local DNS records ({} entries)", count),
             },
             "dnsmasq.d/05-pihole-custom-cname.conf" => {
                 match dns::process_local_cname_entries(&mut tar_file, flush_tables) {
                     Err(e) => warn!("error while processing custom cname restore: {}", e),
-                    Ok(count) => debug!("{} local cname entries processed", count),
+                    Ok(count) => info!("processed local CNAME records ({} entries)", count),
                 }
             }
 
-            _ => info!("to be supported: {}", file_name),
+            _ => debug!("to be supported: {}", file_name),
         }
     }
+
+    match pihole::cli::restart_dns() {
+        Ok(_) => {
+            info!("restarted dns service");
+        }
+        Err(e) => {
+            error!(
+                "error while restarting dns service after processing archive: {}",
+                e
+            );
+        }
+    }
+
+    info!("done importing");
 }
