@@ -105,37 +105,10 @@ pub fn load_table(
                 AdListGroupAssignmentList { list: records };
             Ok(record_list.restore_table(conn)?)
         }
-        _ => {
-            // debug!("processing unmatched table name: {}", table);
-            // let domain_type: i32 = match table {
-            //     "whitelist" => 0,
-            //     "blacklist" => 1,
-            //     "regex_whitelist" => 2,
-            //     "regex_blacklist" => 3,
-            //     _ => -1,
-            // };
-
-            // let mut modified = 0;
-            // if domain_type >= 0 {
-            //     let _ = flush
-            //         && flush_table(
-            //             db_file,
-            //             "domainlist",
-            //             format!("WHERE type = {}", domain_type).as_str(),
-            //         )?;
-
-            //     let records: Vec<Domain> = serde_json::from_str(&s).unwrap();
-            //     let record_list: DomainList = DomainList {
-            //         list: records,
-            //         domain_type: domain_type as i32,
-            //     };
-            //     modified = record_list.restore_table(conn)?;
-            // } else {
-            Err(Box::<dyn Error>::from(format!(
-                "invalid table name provided: {}",
-                table
-            )))
-        }
+        _ => Err(Box::<dyn Error>::from(format!(
+            "invalid table name provided: {}",
+            table
+        ))),
     }
 }
 

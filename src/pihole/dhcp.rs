@@ -4,6 +4,7 @@ use log::{debug, warn};
 use regex::Regex;
 use std::error::Error;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::Path;
 
@@ -23,8 +24,13 @@ pub fn process_static_dhcp(
         StaticHostName, // when no IP address is defined
     }
 
-    if flush {
-        match File::open(STATIC_DHCP_CONF_FILE) {
+    if flush && Path::new(STATIC_DHCP_CONF_FILE).exists() {
+        debug!("flushing existing static dhcp configuration");
+        match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(STATIC_DHCP_CONF_FILE)
+        {
             Err(e) => warn!("error while opening static dhcp config to flush: {}", e),
             Ok(file) => match file.set_len(0) {
                 Err(e) => {
