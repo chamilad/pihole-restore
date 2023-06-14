@@ -69,6 +69,8 @@ argument. For an example, to restore only the Local DNS records run,
 pihole_restore -f <archive_file.tar.gz> --filter localdns
 ```
 
+> use `sudo` in Raspbian since Pihole runs as `pihole` `nologin` user
+
 Multiple filters can be specified as a comma separated string.
 
 ```
