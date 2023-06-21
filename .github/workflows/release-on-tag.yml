@@ -160,8 +160,8 @@ jobs:
           tar zxvf spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
           ./spdx-sbom-generator --include-license-text --format spdx
           ./spdx-sbom-generator --include-license-text --format json
-          mv bom-go-mod.spdx sbom-${TAG_NAME}.spdx
-          mv bom-go-mod.json sbom-${TAG_NAME}.json
+          mv bom-cargo.spdx sbom-${TAG_NAME}.spdx
+          mv bom-cargo.json sbom-${TAG_NAME}.json
 
       - name: Upload sbom spdx artefact
         uses: actions/upload-artifact@v3
