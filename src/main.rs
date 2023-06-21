@@ -54,11 +54,11 @@ fn main() {
 
     let filters;
     if args.filters == "all" {
-        filters = all_filters.clone();
+        filters = all_filters;
     } else {
         filters = args
             .filters
-            .split(",")
+            .split(',')
             .map(String::from)
             .map(|f| f.to_lowercase())
             .collect();

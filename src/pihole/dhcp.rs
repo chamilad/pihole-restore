@@ -49,7 +49,7 @@ pub fn process_static_dhcp(
     for entry in s.lines() {
         debug!("processing static dhcp lease: {}", entry);
         // dhcp-host=<MAC_ADDR>,<IP>,<HOSTNAME>  or variants where ip or hostname is missing
-        let sections: Vec<&str> = entry.split(",").collect();
+        let sections: Vec<&str> = entry.split(',').collect();
 
         let mode: StaticDHCPType;
         if sections.len() == 3 {

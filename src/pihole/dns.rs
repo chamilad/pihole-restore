@@ -12,10 +12,8 @@ pub fn process_local_dns_entries(
     file: &mut tar::Entry<'_, GzDecoder<File>>,
     flush: bool,
 ) -> Result<i32, Box<dyn Error>> {
-    if flush {
-        if !flush_local_dns_entries()? {
-            warn!("could not flush local dns entries");
-        }
+    if flush && !flush_local_dns_entries()? {
+        warn!("could not flush local dns entries");
     }
 
     // todo: dedup
@@ -140,7 +138,7 @@ fn get_current_local_dns_entries() -> Result<Vec<CustomDNSEntry>, Box<dyn Error>
 fn get_local_dns_entries(contents: &str) -> Vec<CustomDNSEntry> {
     let mut entries: Vec<CustomDNSEntry> = Vec::new();
     for entry in contents.lines() {
-        let sections: Vec<&str> = entry.split(" ").collect();
+        let sections: Vec<&str> = entry.split(' ').collect();
         if sections.len() != 2 {
             warn!(
                 "invalid entry found while reading existing custom.list file: {}",
@@ -200,7 +198,7 @@ fn get_cname_entries(contents: &str) -> Vec<CNameConfigEntry> {
     for entry in contents.lines() {
         //cname=<DOMAIN>,<TARGET>
         let cleaned_entry = str::replace(entry, "cname=", "");
-        let sections: Vec<&str> = cleaned_entry.split(",").collect();
+        let sections: Vec<&str> = cleaned_entry.split(',').collect();
         if sections.len() != 2 {
             warn!(
                 "invalid entry found while reading existing cname config file: {}",

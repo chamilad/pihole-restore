@@ -38,7 +38,7 @@ pub fn restore_domainlist(
         domain_type: domain_type as i32,
     };
 
-    Ok(record_list.restore_table(conn)?)
+    record_list.restore_table(conn)
 }
 
 pub fn load_table(
@@ -128,15 +128,16 @@ fn connect_sqlite(db_file: &str) -> Result<Connection, Box<dyn Error>> {
 fn flush_table(db_file: &str, table: &str, condition: &str) -> Result<bool, Box<dyn Error>> {
     let conn: Connection = connect_sqlite(db_file)?;
     let table_exists_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
-    let mut table_entry_stmt = conn.prepare(&table_exists_sql)?;
+    let mut table_entry_stmt = conn.prepare(table_exists_sql)?;
     let mut table_entry = table_entry_stmt.query(params![table])?;
-    if let Some(_) = table_entry.next()? {
-        let sanitised_condition: String;
-        if !condition.is_empty() && !str::starts_with(condition, " ") {
-            sanitised_condition = format!(" {}", condition).to_string();
+
+    // check if table exists first
+    if (table_entry.next()?).is_some() {
+        let sanitised_condition = if !condition.is_empty() && !str::starts_with(condition, " ") {
+            format!(" {}", condition)
         } else {
-            sanitised_condition = condition.to_string();
-        }
+            condition.to_string()
+        };
 
         debug!("flushing table {}", table);
         let clear_sql = format!("DELETE FROM \"{}\"{}", table, sanitised_condition);
