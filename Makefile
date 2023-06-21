@@ -26,7 +26,7 @@ build-armv7:
 	export PKG_CONFIG_ALLOW_CROSS="true"
 	# build
 	cargo build --release --target armv7-unknown-linux-gnueabihf
-	chown -R 1001:1001 target
+	chown -R 1000:1000 target
 
 build-lowest-glibc:
 	# buster at this point is on glibc 2.28
@@ -54,12 +54,6 @@ test-clean:
 	mkdir -p ./test/archive
 	-sudo mv ./test/pihole ./test/archive/pihole-$(shell date +%Y-%m-%d_%H%M)
 	-sudo mv ./test/dnsmasq ./test/archive/dnsmasq-$(shell date +%Y-%m-%d_%H%M)
-
-release: clean build-lowest-glibc
-	cp ./target/release/$(BINARY) ./target/release/$(BINARY)-$(shell cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')-x86_64
-
-release-arm: clean build-lowest-glibc-arm
-	cp ./target/armv7-unknown-linux-gnueabihf/release/$(BINARY) ./target/armv7-unknown-linux-gnueabihf/release/$(BINARY)-$(shell cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')-armv7
 
 clean:
 	rm -rf target

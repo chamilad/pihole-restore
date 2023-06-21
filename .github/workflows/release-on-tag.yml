@@ -3,18 +3,259 @@ name: release-on-tag-creation
 run-name: Creating a release on ${{ github.ref_name }} ${{ github.ref_type }}
 on:
   workflow_dispatch:
-  # push:
-  # tags:
-  # - "**"
+  push:
+    tags:
+      - "**"
+
+env:
+  BINARY_NAME: pihole_restore
 
 jobs:
-  build:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: fmt and lint
+        run: |
+          cargo fmt -- --check && cargo clippy -- -Dwarnings
+
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Run tests
+        run: |
+          cargo test # no tests at the moment
+
+  build-armv7:
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Extract tag name
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Build x86_64 glib2.28
+        env:
+          TAG_NAME: ${{ steps.vars.outputs.tag }}
         run: |
           # test
-          sudo make release-arm
-          sudo ls -alh ./target/armv7-unknown-linux-gnueabihf/release/
+          make build-lowest-glibc-arm
+          sudo chown ${UID}:${GID} target
+          mkdir -p outputs
+          cp ./target/armv7-unknown-linux-gnueabihf/release/${{ env.BINARY_NAME }} ./outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-armv7
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Cosign version
+        run: cosign version
+
+      - name: Get cosign signing key
+        env:
+          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
+        run: |
+          echo "${COSIGN_KEY}" > cosign.key
+
+      - name: Sign the binary
+        env:
+          TAG_NAME: ${{ steps.vars.outputs.tag }}
+        run: |
+          cosign sign-blob --key cosign.key --yes outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-armv7 --output-signature outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-armv7.sig
+
+      - name: Upload build artefact
+        uses: actions/upload-artifact@v3
+        with:
+          path: outputs/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7
+
+      - name: Upload signature artefact
+        uses: actions/upload-artifact@v3
+        with:
+          path: outputs/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7.sig
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7.sig
+
+  build-x86:
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Extract tag name
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Build x86_64 glib2.28
+        env:
+          TAG_NAME: ${{ steps.vars.outputs.tag }}
+        run: |
+          # test
+          make build-lowest-glibc
+          sudo chown ${UID}:${GID} target
+          mkdir -p outputs
+          cp ./target/release/${{ env.BINARY_NAME }} ./outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-x86_64
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Cosign version
+        run: cosign version
+
+      - name: Get cosign signing key
+        env:
+          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
+        run: |
+          echo "${COSIGN_KEY}" > cosign.key
+
+      - name: Sign the binary
+        env:
+          TAG_NAME: ${{ steps.vars.outputs.tag }}
+        run: |
+          cosign sign-blob --key cosign.key --yes outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-x86_64 --output-signature outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-x86_64.sig
+
+      - name: Upload build artefact
+        uses: actions/upload-artifact@v3
+        with:
+          path: outputs/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+
+      - name: Upload signature artefact
+        uses: actions/upload-artifact@v3
+        with:
+          path: outputs/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
+
+  dilligence:
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Extract tag name
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - name: Generate SBOM
+        env:
+          TAG_NAME: ${{ steps.vars.outputs.tag }}
+        run: |
+          wget https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/v0.0.15/spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
+          tar zxvf spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
+          ./spdx-sbom-generator --include-license-text --format spdx
+          ./spdx-sbom-generator --include-license-text --format json
+          mv bom-go-mod.spdx sbom-${TAG_NAME}.spdx
+          mv bom-go-mod.json sbom-${TAG_NAME}.json
+
+      - name: Upload sbom spdx artefact
+        uses: actions/upload-artifact@v3
+        with:
+          path: sbom-${{ steps.vars.outputs.tag }}.spdx
+          name: sbom-${{ steps.vars.outputs.tag }}.spdx
+
+      - name: Upload sbom json artefact
+        uses: actions/upload-artifact@v3
+        with:
+          path: sbom-${{ steps.vars.outputs.tag }}.json
+          name: sbom-${{ steps.vars.outputs.tag }}.json
+
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - build-x86
+      - build-armv7
+      - dilligence
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Extract tag name
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - name: Download x86 build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+
+      - name: Download x86 signature artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
+
+      - name: Download armv7 build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7
+
+      - name: Download armv7 signature artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7.sig
+
+      - name: Download sbom spdx artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: sbom-${{ steps.vars.outputs.tag }}.spdx
+
+      - name: Download sbom json artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: sbom-${{ steps.vars.outputs.tag }}.json
+
+      - name: Get cosign pub key
+        env:
+          COSIGN_PUB: ${{ secrets.COSIGN_PUB }}
+          TAG_NAME: ${{ steps.vars.outputs.tag }}
+        run: |
+          echo "${COSIGN_PUB}" > cosign-${TAG_NAME}.pub
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          fail_on_unmatched_files: true
+          name: Release ${{ steps.vars.outputs.tag }}
+          body: |
+            \<auto generated, will be replaced pretty soon with good stuff\>
+
+            ## Verification
+            The binaries are signed with [Sigstore Cosign](https://docs.sigstore.dev/main-concepts/). The public key
+            is available in the release artefacts as `cosign-${{ steps.vars.outputs.tag }}.pub`.
+
+            [Install `cosign`](https://docs.sigstore.dev/cosign/installation/) and use the following commands on Linux to verify the binaries and the images.
+
+            ```bash
+            # download the binary, signature, and the public key
+            wget https://github.com/chamilad/kibana-prometheus-exporter/releases/download/${{ steps.vars.outputs.tag }}/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+            wget https://github.com/chamilad/kibana-prometheus-exporter/releases/download/${{ steps.vars.outputs.tag }}/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
+            wget https://github.com/chamilad/kibana-prometheus-exporter/releases/download/${{ steps.vars.outputs.tag }}/cosign-${{ steps.vars.outputs.tag }}.pub
+
+            # verify the binary
+            cosign verify-blob --key cosign-${{ steps.vars.outputs.tag }}.pub --signature ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+            ```
+
+            ## Usage
+            Refer to the [README.md ](README.md) for the usage details.
+          files: |
+            ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+            ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
+            ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7
+            ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7.sig
+            cosign-${{ steps.vars.outputs.tag }}.pub
+            sbom-${{ steps.vars.outputs.tag }}.json
+            sbom-${{ steps.vars.outputs.tag }}.spdx
