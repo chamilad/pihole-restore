@@ -245,9 +245,9 @@ jobs:
 
             ```bash
             # download the binary, signature, and the public key
-            wget https://github.com/chamilad/kibana-prometheus-exporter/releases/download/${{ steps.vars.outputs.tag }}/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
-            wget https://github.com/chamilad/kibana-prometheus-exporter/releases/download/${{ steps.vars.outputs.tag }}/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
-            wget https://github.com/chamilad/kibana-prometheus-exporter/releases/download/${{ steps.vars.outputs.tag }}/cosign-${{ steps.vars.outputs.tag }}.pub
+            wget https://github.com/chamilad/pihole-restore/releases/download/${{ steps.vars.outputs.tag }}/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
+            wget https://github.com/chamilad/pihole-restore/releases/download/${{ steps.vars.outputs.tag }}/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig
+            wget https://github.com/chamilad/pihole-restore/releases/download/${{ steps.vars.outputs.tag }}/cosign-${{ steps.vars.outputs.tag }}.pub
 
             # verify the binary
             cosign verify-blob --key cosign-${{ steps.vars.outputs.tag }}.pub --signature ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64.sig ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-x86_64
