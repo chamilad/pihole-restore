@@ -156,7 +156,6 @@ jobs:
         env:
           TAG_NAME: ${{ steps.vars.outputs.tag }}
         run: |
-          cargo pkgid ## todo: test
           wget https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/v0.0.15/spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
           tar zxvf spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
           ./spdx-sbom-generator --include-license-text --format spdx
