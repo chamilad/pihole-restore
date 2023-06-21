@@ -16,5 +16,5 @@ jobs:
       - name: Build x86_64 glib2.28
         run: |
           # test
-          make release-arm
-          ls -alh ./target/armv7-unknown-linux-gnueabihf/release/
+          sudo make release-arm
+          sudo ls -alh ./target/armv7-unknown-linux-gnueabihf/release/

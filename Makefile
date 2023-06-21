@@ -5,7 +5,7 @@ BINARY="pihole_restore"
 
 $(BINARY):
 	cargo build --release
-	chown -R 1000:1000 target
+	chown -R $$(id -u):$$(id -g) target
 
 build-armv7:
 	# add linker config
@@ -26,7 +26,7 @@ build-armv7:
 	export PKG_CONFIG_ALLOW_CROSS="true"
 	# build
 	cargo build --release --target armv7-unknown-linux-gnueabihf
-	chown -R 1000:1000 target
+	chown -R 1001:1001 target
 
 build-lowest-glibc:
 	# buster at this point is on glibc 2.28
