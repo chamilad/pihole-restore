@@ -2,7 +2,6 @@
 name: release-on-tag-creation
 run-name: Creating a release on ${{ github.ref_name }} ${{ github.ref_type }}
 on:
-  workflow_dispatch:
   push:
     tags:
       - "**"
