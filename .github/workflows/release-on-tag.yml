@@ -30,7 +30,7 @@ jobs:
         run: |
           cargo test # no tests at the moment
 
-  build-armv7:
+  build-armv7-and-sign:
     needs:
       - test
     runs-on: ubuntu-latest
@@ -42,6 +42,7 @@ jobs:
         run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Build x86_64 glib2.28
         env:
           TAG_NAME: ${{ steps.vars.outputs.tag }}
@@ -82,7 +83,7 @@ jobs:
           path: outputs/${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7.sig
           name: ${{ env.BINARY_NAME }}-${{ steps.vars.outputs.tag }}-linux-armv7.sig
 
-  build-x86:
+  build-x86-and-sign:
     needs:
       - test
     runs-on: ubuntu-latest
@@ -94,6 +95,7 @@ jobs:
         run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Build x86_64 glib2.28
         env:
           TAG_NAME: ${{ steps.vars.outputs.tag }}
@@ -147,6 +149,8 @@ jobs:
         id: vars
         run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Generate SBOM
         env:
           TAG_NAME: ${{ steps.vars.outputs.tag }}
@@ -173,8 +177,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs:
-      - build-x86
-      - build-armv7
+      - build-x86-and-sign
+      - build-armv7-and-sign
       - dilligence
     permissions:
       contents: write
