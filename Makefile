@@ -30,12 +30,12 @@ build-armv7:
 
 build-lowest-glibc:
 	# buster at this point is on glibc 2.28
-	docker run -v $(shell pwd):/usr/src/pihole_restore -w /usr/src/pihole_restore -it rust:buster make
+	docker run -v $(shell pwd):/usr/src/pihole_restore -w /usr/src/pihole_restore -t rust:buster make
 	
 
 build-lowest-glibc-arm:
 	# buster at this point is on glibc 2.28
-	docker run -v $(shell pwd):/usr/src/pihole_restore -w /usr/src/pihole_restore -it rust:buster make build-armv7
+	docker run -v $(shell pwd):/usr/src/pihole_restore -w /usr/src/pihole_restore -t rust:buster make build-armv7
 
 test: test-clean build-lowest-glibc
 	mkdir -p test/pihole
@@ -44,7 +44,7 @@ test: test-clean build-lowest-glibc
 	sleep 20
 	docker cp ./target/release/pihole_restore pihole:./
 	docker cp ./test/pi-hole_backup.tar.gz pihole:./
-	docker exec -e RUST_LOG=debug -it pihole ./pihole_restore -f pi-hole_backup.tar.gz
+	docker exec -e RUST_LOG=debug -t pihole ./pihole_restore -f pi-hole_backup.tar.gz
 	docker inspect pihole | grep IPAddress
 	docker logs pihole 2>/dev/null | grep "Assigning random password"
 
