@@ -8,6 +8,9 @@ detached runtime, since it depends on being able to access the `pihole` CLI.
 
 ![restore](./img/restore.png)
 
+The motivation to write this tool was the absence of a `restore` command in the
+`pihole` CLI shipped with Pi-hole.
+
 ## Compile Time Dependencies
 
 1. `glibc` - At most v2.28 (since the oldest pihole setup I could get my hands
@@ -15,11 +18,15 @@ detached runtime, since it depends on being able to access the `pihole` CLI.
 
 ### Ubuntu
 
+The following dev headers will be needed to compile the binary.
+
 1. `libsqlite3-dev`
 
 ## Runtime Dependencies
 
-1. `glibc` - At least v2.28
+1. `glibc` - At least v2.28 (if your runtime is older than this, please open an
+   issue. I haven't explored far back enough to see if the older docker images
+   have runtimes older than this.)
 
 ## Usage
 
@@ -97,4 +104,4 @@ and copy it to the `test` directory as `test/pi-hole_backup.tar.gz`.
 
 This source code and the binary is licensed under Apache v2 license. It is not
 distributed with the official Pihole distribution, and it is not endorsed by
-official Pihole community at this moment.
+official Pi-hole community at this moment.
