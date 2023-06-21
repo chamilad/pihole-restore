@@ -1,0 +1,19 @@
+---
+name: lint-on-push
+run-name: Running linting on ${{ github.ref_name }} ${{ github.ref_type }}
+on:
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: mirlahiji/rust-action@master
+        with:
+          args: cd integration-test && cargo fmt -- --check && cargo clippy -- -Dwarnings && cargo test # no tests at the moment
