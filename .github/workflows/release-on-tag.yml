@@ -47,9 +47,9 @@ jobs:
         env:
           TAG_NAME: ${{ steps.vars.outputs.tag }}
         run: |
-          # test
           make build-lowest-glibc-arm
-          sudo chown ${UID}:${GID} target
+          # uid = 1001, gid = 115 in github runners
+          sudo chown 1001:115 target
           mkdir -p outputs
           cp ./target/armv7-unknown-linux-gnueabihf/release/${{ env.BINARY_NAME }} ./outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-armv7
 
@@ -102,7 +102,8 @@ jobs:
         run: |
           # test
           make build-lowest-glibc
-          sudo chown ${UID}:${GID} target
+          # uid = 1001, gid = 115 in github runners
+          sudo chown 1001:115 target
           mkdir -p outputs
           cp ./target/release/${{ env.BINARY_NAME }} ./outputs/${{ env.BINARY_NAME }}-${TAG_NAME}-linux-x86_64
 
@@ -155,6 +156,7 @@ jobs:
         env:
           TAG_NAME: ${{ steps.vars.outputs.tag }}
         run: |
+          cargo pkgid ## todo: test
           wget https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/v0.0.15/spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
           tar zxvf spdx-sbom-generator-v0.0.15-linux-amd64.tar.gz
           ./spdx-sbom-generator --include-license-text --format spdx
