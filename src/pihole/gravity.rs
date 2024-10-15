@@ -168,7 +168,7 @@ struct Domain {
     pub domain: String,
     pub enabled: i32,
     pub date_added: i64,
-    pub comment: String,
+    pub comment: Option<String>, // a field that can be nullable
 }
 
 impl Restorable for DomainList {
@@ -214,7 +214,7 @@ struct Ad {
     pub address: String,
     pub enabled: i32,
     pub date_added: i64,
-    pub comment: String,
+    pub comment: Option<String>,
 }
 
 impl Restorable for AdList {
@@ -350,7 +350,7 @@ struct Client {
     pub id: i32,
     pub ip: String,
     pub date_added: i64,
-    pub comment: String,
+    pub comment: Option<String>,
 }
 
 impl Restorable for ClientList {
