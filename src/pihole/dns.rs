@@ -157,25 +157,29 @@ fn get_local_dns_entries(contents: &str) -> Vec<CustomDNSEntry> {
 }
 
 fn flush_cname_config() -> Result<bool, Box<dyn Error>> {
-    let current_entries = get_current_cname_config()?;
-    for entry in current_entries {
-        // setting false at the end avoids pihole restarting dns for every command execution
-        let flush_cmd: Vec<&str> = vec![
-            "-a",
-            "removecustomcname",
-            &entry.domain,
-            &entry.target,
-            "false",
-        ];
-        match cli::execute(flush_cmd) {
-            Ok(_) => debug!("removed cname entry: {}->{}", entry.domain, entry.target),
-            Err(e) => warn!(
-                "error while trying remove custom dns entry {}->{}: {}",
-                entry.domain, entry.target, e
-            ),
+    // only flush if we can read the file
+    if let Ok(current_entries) = get_current_cname_config() {
+        for entry in current_entries {
+            // setting false at the end avoids pihole restarting dns for every command execution
+            let flush_cmd: Vec<&str> = vec![
+                "-a",
+                "removecustomcname",
+                &entry.domain,
+                &entry.target,
+                "false",
+            ];
+            match cli::execute(flush_cmd) {
+                Ok(_) => debug!("removed cname entry: {}->{}", entry.domain, entry.target),
+                Err(e) => warn!(
+                    "error while trying remove custom cname entry {}->{}: {}",
+                    entry.domain, entry.target, e
+                ),
+            }
         }
+        Ok(true)
+    } else {
+        Ok(false)
     }
-    Ok(true)
 }
 
 #[derive(Debug)]

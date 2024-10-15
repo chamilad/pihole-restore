@@ -44,7 +44,7 @@ test: test-clean build-lowest-glibc
 	sleep 20
 	docker cp ./target/release/pihole_restore test-pihole-test:./
 	docker cp ./test/pi-hole_backup.tar.gz test-pihole-test:./
-	docker exec -e RUST_LOG=debug -t test-pihole-test ./pihole_restore -f pi-hole_backup.tar.gz
+	docker exec -e RUST_LOG=debug -t test-pihole-test ./pihole_restore -c -f pi-hole_backup.tar.gz
 	docker inspect test-pihole-test | grep IPAddress
 	docker logs test-pihole-test 2>/dev/null | grep "Assigning random password"
 

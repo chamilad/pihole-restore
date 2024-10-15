@@ -304,7 +304,7 @@ struct Group {
     pub id: i32,
     pub name: String,
     pub date_added: i64,
-    pub description: String,
+    pub description: Option<String>, // this field can be null
 }
 
 impl Restorable for GroupList {
