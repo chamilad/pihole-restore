@@ -1,19 +1,19 @@
----
-name: test-on-push
-run-name: Running tests on ${{ github.ref_name }} ${{ github.ref_type }}
-on:
-  push:
-    branches:
-      - "**"
-    tags-ignore:
-      - "**"
+# ---
+# name: test-on-push
+# run-name: Running tests on ${{ github.ref_name }} ${{ github.ref_type }}
+# on:
+#   push:
+#     branches:
+#       - "**"
+#     tags-ignore:
+#       - "**"
 
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - name: Test
-        run: |
-          cargo test # no tests at the moment
+# jobs:
+#   lint:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v3
+#       - uses: actions-rust-lang/setup-rust-toolchain@v1
+#       - name: Test
+#         run: |
+#           cargo test # no tests at the moment
