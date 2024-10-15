@@ -6,6 +6,8 @@ syncing from a given master configuration point. This CLI is intended to be run
 on the same runtime as the target Pihole server itself. It cannot run in a
 detached runtime, since it depends on being able to access the `pihole` CLI.
 
+![design](./img/pihole-restore-design.png)
+
 ![restore](./img/restore.png)
 
 The motivation to write this tool was the absence of a `restore` command in the
