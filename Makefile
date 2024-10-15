@@ -40,17 +40,29 @@ build-lowest-glibc-arm:
 test: test-clean build-lowest-glibc
 	mkdir -p test/pihole
 	mkdir -p test/dnsmasq
-	docker run --name pihole -d -v $(shell pwd)/test/pihole:/etc/pihole -v $(shell pwd)/test/dnsmasq:/etc/dnsmasq.d pihole/pihole:latest
+	docker run --name test-pihole-test -d -v $(shell pwd)/test/pihole:/etc/pihole -v $(shell pwd)/test/dnsmasq:/etc/dnsmasq.d pihole/pihole:latest
 	sleep 20
-	docker cp ./target/release/pihole_restore pihole:./
-	docker cp ./test/pi-hole_backup.tar.gz pihole:./
-	docker exec -e RUST_LOG=debug -t pihole ./pihole_restore -f pi-hole_backup.tar.gz
-	docker inspect pihole | grep IPAddress
-	docker logs pihole 2>/dev/null | grep "Assigning random password"
+	docker cp ./target/release/pihole_restore test-pihole-test:./
+	docker cp ./test/pi-hole_backup.tar.gz test-pihole-test:./
+	docker exec -e RUST_LOG=debug -t test-pihole-test ./pihole_restore -f pi-hole_backup.tar.gz
+	docker inspect test-pihole-test | grep IPAddress
+	docker logs test-pihole-test 2>/dev/null | grep "Assigning random password"
+
+# test an external binary, should be replaced with better testing
+test-binary: test-clean
+	mkdir -p test/pihole
+	mkdir -p test/dnsmasq
+	docker run --name test-pihole-test -d -v $(shell pwd)/test/pihole:/etc/pihole -v $(shell pwd)/test/dnsmasq:/etc/dnsmasq.d pihole/pihole:latest
+	sleep 20
+	docker cp ./target/external/pihole_restore test-pihole-test:./
+	docker cp ./test/pi-hole_backup.tar.gz test-pihole-test:./
+	docker exec -e RUST_LOG=debug -t test-pihole-test ./pihole_restore -f pi-hole_backup.tar.gz
+	docker inspect test-pihole-test | grep IPAddress
+	docker logs test-pihole-test 2>/dev/null | grep "Assigning random password"
 
 test-clean:
-	-docker stop pihole
-	-docker rm pihole
+	-docker stop test-pihole-test
+	-docker rm test-pihole-test
 	mkdir -p ./test/archive
 	-sudo mv ./test/pihole ./test/archive/pihole-$(shell date +%Y-%m-%d_%H%M)
 	-sudo mv ./test/dnsmasq ./test/archive/dnsmasq-$(shell date +%Y-%m-%d_%H%M)
