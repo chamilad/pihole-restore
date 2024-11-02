@@ -98,9 +98,22 @@ pihole_restore -f <archive_file.tar.gz> --filter blacklist,adlist,group,client
 ## Development
 
 Use the `makefile` target `test` to spin up a pihole Docker container. It
-compiles the binary on a Debian Buster container (to link to glibc 2.28), and
-copies the result to the Pihole container. Create a backup of a Pihole setup
+compiles the binary on a Debian Buster container (to link to glibc 2.28), 
+copies the result to the Pihole container, copies the sample backup archive to
+the container, and runs a restore job. The directories `test/pihole` and
+`test/dnsmasq` are mounted to `/etc/pihole` and `/etc/dnsmasq.d` respectively.
+
+So the sample archive should exist in the `test` directory before running `make
+test`. For this, create a backup of a Pihole setup
 and copy it to the `test` directory as `test/pi-hole_backup.tar.gz`.
+
+At the end of the run, `make test` will output the IP address of the pihole
+container and the randomly generated admin password from the logs.
+
+`make test-clean` will stop and clean the test container (named
+`test-pihole-test`, so make sure you don't have any existing containers named
+with that ID), and move the `pihole` and `dnsmasq` directories to the
+`test/archive` directory for post-test analysis.
 
 ## License
 
